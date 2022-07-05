@@ -1,85 +1,134 @@
-#include <Arduino.h>
-#include <IRremote.h>
+#include <Dabble.h>
 
-#define RECV_PIN 2
-#define LEFT_MOTOR 9
-#define RIGHT_MOTOR 10
+#define CUSTOM_SETTINGS
+#define INCLUDE_GAMEPAD_MODULE
 
+#define motor_direito_horario 8
+#define motor_direito_anti 9
+#define motor_esquerdo_horario 11
+#define motor_esquerdo_anti 10
 
-IRrecv irrecv(RECV_PIN); // PASSA O PARÂMETRO PARA A FUNÇÃO irrecv
+void setup() {
+  Serial.begin(19200);
+  Dabble.begin(9600);
 
-int ultimo_comando_e_acelerar = 0;
-
-void setup()
-{
-  pinMode(LEFT_MOTOR, OUTPUT);
-  pinMode(RIGHT_MOTOR, OUTPUT);
-
-  irrecv.enableIRIn();
-  Serial.begin(9600);
+  pinMode(motor_direito_horario, OUTPUT);
+  pinMode(motor_direito_anti, OUTPUT);
+  pinMode(motor_esquerdo_horario, OUTPUT);
+  pinMode(motor_esquerdo_anti, OUTPUT);
 }
 
-void acelerar(){
-  ultimo_comando_e_acelerar = 1;
-  analogWrite(LEFT_MOTOR, 255);
-  analogWrite(RIGHT_MOTOR, 255);
+
+
+void andar(){
+
+  digitalWrite(motor_direito_horario, LOW);
+  digitalWrite(motor_direito_anti, HIGH);
+
+  digitalWrite(motor_esquerdo_horario, LOW);
+  digitalWrite(motor_esquerdo_anti, HIGH);
 }
 
-void freiar(){
-  ultimo_comando_e_acelerar = 0;
-  analogWrite(LEFT_MOTOR, 0);
-  analogWrite(RIGHT_MOTOR, 0);
+void virar_esquerda(){
+
+  digitalWrite(motor_direito_horario, LOW);
+  digitalWrite(motor_direito_anti, HIGH);
+
+  digitalWrite(motor_esquerdo_horario, HIGH);
+  digitalWrite(motor_esquerdo_anti, LOW);
 }
 
-void virarEsquerda(){
-  if(ultimo_comando_e_acelerar == 1){
-    freiar();
-    delay(200);
+void virar_direita(){
+  digitalWrite(motor_direito_horario, HIGH);
+  digitalWrite(motor_direito_anti, LOW);
+
+  digitalWrite(motor_esquerdo_horario, LOW);
+  digitalWrite(motor_esquerdo_anti, HIGH);
+}
+
+void frear(){
+  digitalWrite(motor_direito_horario, LOW);
+  digitalWrite(motor_direito_anti, LOW);
+
+  digitalWrite(motor_esquerdo_horario, LOW);
+  digitalWrite(motor_esquerdo_anti, LOW);
+}
+
+void re(){
+
+  digitalWrite(motor_direito_horario, HIGH);
+  digitalWrite(motor_direito_anti, LOW);
+
+  digitalWrite(motor_esquerdo_horario, HIGH);
+  digitalWrite(motor_esquerdo_anti, LOW);
+}
+
+
+
+
+void loop() {
+  Dabble.processInput();
+  Serial.println();
+  Serial.print("KeyPressed: ");
+
+  
+  if (GamePad.isUpPressed()){
+    Serial.print("UP");
+    andar();
+  }else if (GamePad.isDownPressed()){
+    Serial.print("DOWN");
+    re();
+  }else if (GamePad.isLeftPressed()){
+    virar_esquerda();
+    Serial.print("Left");
+  } else if (GamePad.isRightPressed()){
+    virar_direita();
+    Serial.print("Right");
+  } else {
+    frear();
   }
-  analogWrite(LEFT_MOTOR, 0);
-  analogWrite(RIGHT_MOTOR, 255);
-}
 
-void virarDireita(){
-  if(ultimo_comando_e_acelerar == 1){
-    freiar();
-    delay(200);
-  }
-  analogWrite(LEFT_MOTOR, 255);
-  analogWrite(RIGHT_MOTOR, 0);
-}
+//  if (GamePad.isSquarePressed()){
+//    Serial.print("Square");
+//  }
+//
+//  if (GamePad.isCirclePressed()){
+//    Serial.print("Circle");
+//  }
+//
+//  if (GamePad.isCrossPressed()){
+//    Serial.print("Cross");
+//  }
+//
+//  if (GamePad.isTrianglePressed()){
+//    Serial.print("Triangle");
+//  }
+//
+//  if (GamePad.isStartPressed()){
+//    Serial.print("Start");
+//  }
+//
+//  if (GamePad.isSelectPressed())
+//  {
+//    Serial.print("Select");
+//  }
 
-void loop(){
-
-  if (IrReceiver.decode()){
-
-    switch (IrReceiver.decodedIRData.command){
-
-      case (21):{ // Acelerar
-        acelerar();
-        break;
-      }
-
-      case (64):{ // Direita
-        virarDireita();
-        break;
-      }
-
-      case (68):{ // Esquerda
-        virarEsquerda();
-        break;
-      }
-
-      default: {
-        freiar();
-      }
-
-    }
-    IrReceiver.resume();
-  }else {
-    freiar();
-  }
+//  int a = GamePad.getAngle();
+//  Serial.print("Angle: ");
+//  Serial.print(a);
+//  Serial.print('\t');
+//  int b = GamePad.getRadius();
+//  Serial.print("Radius: ");
+//  Serial.print(b);
+//  Serial.print('\t');
+//  float c = GamePad.getXaxisData();
+//  Serial.print("x_axis: ");
+//  Serial.print(c);
+//  Serial.print('\t');
+//  float d = GamePad.getYaxisData();
+//  Serial.print("y_axis: ");
+//  Serial.println(d);
+//  Serial.println();
 
 
-  delay(200);
 }
