@@ -38,7 +38,6 @@ float distancia_traseira = 0;
 // Curva 
 bool testando_se_ta_reto = false;
 int inicio_teste_se_ta_reto = 0;
-int duracao_teste_se_ta_reto = 5000;
 int distancia_ponto_de_inicio = 0;
 bool ta_indo_pra_frente = true;
 int timer = millis();
@@ -73,47 +72,37 @@ void loop(){
         delay(50);
         setar_motores(0, 0);
 
-        passo = 1;
+        muda_passo(1);
       }
       break;
 
     case 1:
-      intervalo(2);
-      break;
 
-    case 2:
       if(distancia_traseira >= distancia_limite){
         setar_motores(1, 1);
       }else {
         setar_motores(-1, -1);
         delay(50);
         setar_motores(0,0);
-        passo = 3;
+
+        muda_passo(3);
       }
       break;
 
     case 3: 
-      intervalo(4);
-      break;
-
-    case 4: 
       setar_motores(-1, 0);
       delay(2000);
       setar_motores(0,0);
-      passo = 5;
+      muda_passo(4);
       break;
 
-    case 5: 
-      intervalo(6);
-      break;
-
-    case 6:
+    case 5:
 
       if(testando_se_ta_reto){
 
         if(
           (
-            (timer - inicio_teste_se_ta_reto) > duracao_teste_se_ta_reto
+            (timer - inicio_teste_se_ta_reto) > 4000
           ) || (
             ta_indo_pra_frente && distancia_frontal < distancia_limite
           ) || (
@@ -134,7 +123,7 @@ void loop(){
               setar_motores(-1, 0);
             }
 
-            delay(2000/divisor_de_tempo);
+            delay(4000/divisor_de_tempo);
             setar_motores(0, 0);
 
             delay(1000);
@@ -143,9 +132,9 @@ void loop(){
             testando_se_ta_reto = false;
 
           }else {
-            passo = 7;
-          }
 
+            muda_passo(0);
+          }
           
         }
 
@@ -164,16 +153,12 @@ void loop(){
       }
 
       break;
-
-    case 7: 
-      passo =0;
-      break;
     default:
       setar_motores(0,0);
   }
 }
 
-void intervalo(int proximo_passo){
+void muda_passo(int proximo_passo){
   setar_motores(0,0);
   delay(2000); 
   passo = proximo_passo;
