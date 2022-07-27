@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <Ultrasonic.h>
 
-// Motores
+// Motores:
 #define motor_direito_horario 5
 #define motor_direito_anti 4
 #define motor_esquerdo_horario 7
@@ -9,10 +9,11 @@
 
 // Gerais
 int passo = 0;
-int distancia_limite = 15; // CM
-bool primeira_linha = true;
+int distancia_limite = 20; // CM
+int sentido = 1;
 
-// Sensores de distancia
+
+// Sensores de distancia:
 #define sensor_frontal_echo A2
 #define sensor_frontal_trig A3
 
@@ -35,10 +36,19 @@ int distancia_direita = 0;
 int distancia_esquerda = 0;
 int distancia_traseira = 0;
 
+
+// Curva e alinhamento:
+
+bool primeira_vez_passo_2 = false;
 bool lado_parede_e_direita = false;
 int distancia_inicial_parede = 0;
-int divisor_de_curva = 2;
-int variacao_distancia_lateral = 0;
+bool pode_andar = false;
+int variacao_de_distancia_da_parede = 0;
+int momento_da_ultima_correcao = 0; 
+int delay_de_correcao = 0;
+
+
+
 
 void setup(){
   Serial.begin(9600);
@@ -58,120 +68,178 @@ void loop(){
 
   switch(passo){
 
-    case 0: //Procura a parede na frente do robo
+    case 0: { //Procura a parede na frente do robo
 
       if(distancia_frontal >= distancia_limite){
-        setar_motores(-1, -1);
-      }else {
-        setar_motores(1, 1);
+        ligar_motores(-1, -1);
+      } else {
+        ligar_motores(1, 1);
         delay(50);
-        setar_motores(0, 0);
+        ligar_motores(0, 0);
 
         mudar_passo(1);
       }
       break;
+    }
 
-    case 1: // Girar o robo para um lado que não tenha parede
+    case 1: {// Girar o robo para um lado que não tenha parede
 
-      if(distancia_esquerda <= distancia_limite){
-        setar_motores(0, 1);
+      if(distancia_direita > distancia_limite){
+        ligar_motores(0, 1);
         
         lado_parede_e_direita = true;
-        distancia_inicial_parede = distancia_direita;
         
       } else {
-        setar_motores(1, 0);
+        ligar_motores(1, 0);
 
         lado_parede_e_direita = false;
-        distancia_inicial_parede = distancia_esquerda;
       }
+      delay(2000);
+      ligar_motores(0,0);
 
-      delay(1800);
-      setar_motores(0,0);
-
-      primeira_linha = true;
       mudar_passo(2);
 
       break;
+    }
 
-    case 2: //Andar em uma direção corrigindo o angulo em relação a parede até encontra-la
+    case 2: {
 
-      bool pode_andar = false;
+      if(primeira_vez_passo_2){
+        primeira_vez_passo_2 = false;
 
-      if(primeira_linha){
+        if(lado_parede_e_direita){
+          distancia_inicial_parede = distancia_direita;
+        }else {
+          distancia_inicial_parede = distancia_esquerda;
+        }
+      }
+
+
+      if(sentido == 1){
         pode_andar = distancia_frontal > distancia_limite;
-      } else {
+      }else {
         pode_andar = distancia_traseira > distancia_limite;
       }
+
 
       if(pode_andar){
 
         if(lado_parede_e_direita){
-          variacao_distancia_lateral = distancia_direita - distancia_inicial_parede;
+          variacao_de_distancia_da_parede = distancia_direita - distancia_inicial_parede;
         }else {
-          variacao_distancia_lateral = distancia_esquerda - distancia_inicial_parede;
+          variacao_de_distancia_da_parede = distancia_esquerda - distancia_inicial_parede;
         }
 
-        if(abs(variacao_distancia_lateral) > 5){
+        if(abs(variacao_de_distancia_da_parede) > 5 && abs(variacao_de_distancia_da_parede) < 30){
 
-          if(variacao_distancia_lateral > 0){
+
+          // Freia o robo e espera um segundo
+          if(sentido == 1){
+            ligar_motores(1, 1);
+          } else {
+            ligar_motores(-1, -1);
+          }
+          delay(50);
+          ligar_motores(0,0);
+          delay(1000);
+
+          if(variacao_de_distancia_da_parede > 0){
 
             if(lado_parede_e_direita){
-              setar_motores(1, 0);
+              if(sentido == 1){
+                ligar_motores(1, 0);
+              }else {
+                ligar_motores(-1, 0);
+              }
             }else {
-              setar_motores(0, 1);
+              if(sentido == 1){
+                ligar_motores(0, 1);
+              }else {
+                ligar_motores(0, -1);
+              }
             }
 
           }else {
 
             if(lado_parede_e_direita){
-              setar_motores(0, 1);
+              if(sentido == 1){
+                ligar_motores(0, 1);
+              }else {
+                ligar_motores(0, -1);
+              }
             }else {
-              setar_motores(1, 0);
+              if(sentido == 1){
+                ligar_motores(1, 0);
+              }else {
+                ligar_motores(-1, 0);
+              }
             }
           }
 
-          delay(1800/divisor_de_curva);
-          setar_motores(0, 0);
-          divisor_de_curva = divisor_de_curva * 2;
-          
-          delay(1000);
-        }else {
-          if(primeira_linha){
-            setar_motores(-1, -1);
+          delay_de_correcao = (
+            10000/
+            millis() - momento_da_ultima_correcao
+          ) / 1000;
+
+          if(millis() - momento_da_ultima_correcao > 10000){
+            delay(800);
+          }else if (millis() - momento_da_ultima_correcao > 5000){
+            delay(1000);
           } else {
-            setar_motores(1, 1);
+            delay(1200);
+          }
+
+          ligar_motores(0, 0);
+
+          delay(1000);
+          momento_da_ultima_correcao = millis();
+          primeira_vez_passo_2 = true;
+
+        } else { //anda
+          if(sentido == 1){
+            ligar_motores(-1, -1);
+          } else {
+            ligar_motores(1, 1);
           }
         }
 
-      }else {
-        if(primeira_linha){
-          setar_motores(1, 1);
-        }else {
-          setar_motores(-1, -1);
+      } else {
+
+        if(sentido == 1){
+          sentido = -1;
+          ligar_motores(1, 1);
+        } else {
+
+          mudar_passo(3);
+          ligar_motores(-1, -1);
         }
+
         delay(50);
-        setar_motores(0, 0);
-        primeira_linha = false;
+        ligar_motores(0, 0);
+
+        delay(2000);
+        primeira_vez_passo_2 = true;
 
       }
 
-      break;
 
+      break;
+    }
+    
     default:
-      setar_motores(0,0);
+      ligar_motores(0,0);
   }
 
 
 }
 
 void mudar_passo(int proximo_passo){
-  setar_motores(0,0);
+  ligar_motores(0,0);
   delay(2000); 
   passo = proximo_passo;
 }
 
-void setar_motores(int direita, int esquerda){
+void ligar_motores(int direita, int esquerda){
 
 
   switch(direita){
