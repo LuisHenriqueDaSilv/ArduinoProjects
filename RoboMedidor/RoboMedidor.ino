@@ -9,8 +9,9 @@
 
 // Gerais
 int passo = 0;
-int distancia_limite = 20; // CM
+int distancia_limite = 10; // CM
 int sentido = 1;
+bool pode_andar = false;
 
 
 // Sensores de distancia:
@@ -39,13 +40,13 @@ int distancia_traseira = 0;
 
 // Curva e alinhamento:
 
-bool primeira_vez_passo_2 = false;
+bool comeco_de_linha = false;
 bool lado_parede_e_direita = false;
 int distancia_inicial_parede = 0;
-bool pode_andar = false;
 int variacao_de_distancia_da_parede = 0;
 int momento_da_ultima_correcao = 0; 
-int delay_de_correcao = 0;
+bool corrigiu = false;
+bool primeira_linha = true;
 
 
 
@@ -94,8 +95,10 @@ void loop(){
 
         lado_parede_e_direita = false;
       }
-      delay(2000);
+      delay(1800);
       ligar_motores(0,0);
+
+      comeco_de_linha = true;
 
       mudar_passo(2);
 
@@ -104,8 +107,8 @@ void loop(){
 
     case 2: {
 
-      if(primeira_vez_passo_2){
-        primeira_vez_passo_2 = false;
+      if(comeco_de_linha){
+        comeco_de_linha = false;
 
         if(lado_parede_e_direita){
           distancia_inicial_parede = distancia_direita;
@@ -176,24 +179,20 @@ void loop(){
             }
           }
 
-          delay_de_correcao = (
-            10000/
-            millis() - momento_da_ultima_correcao
-          ) / 1000;
-
-          if(millis() - momento_da_ultima_correcao > 10000){
-            delay(800);
-          }else if (millis() - momento_da_ultima_correcao > 5000){
-            delay(1000);
+          if(millis() - momento_da_ultima_correcao > 5000){
+            delay(400);
+          }else if (millis() - momento_da_ultima_correcao > 300){
+            delay(600);
           } else {
-            delay(1200);
+            delay(800);
           }
 
           ligar_motores(0, 0);
 
           delay(1000);
           momento_da_ultima_correcao = millis();
-          primeira_vez_passo_2 = true;
+          comeco_de_linha = true;
+          corrigiu = true;
 
         } else { //anda
           if(sentido == 1){
@@ -205,20 +204,31 @@ void loop(){
 
       } else {
 
+
         if(sentido == 1){
-          sentido = -1;
           ligar_motores(1, 1);
         } else {
-
-          mudar_passo(3);
           ligar_motores(-1, -1);
         }
 
         delay(50);
-        ligar_motores(0, 0);
+        ligar_motores(0,0);
 
-        delay(2000);
-        primeira_vez_passo_2 = true;
+
+        if(primeira_linha){
+
+          primeira_linha = false;
+          inverter_sentido();
+        } else { 
+
+          if(corrigiu) {
+            delay(2000);
+            inverter_sentido();
+            corrigiu = false;
+          } else {
+            mudar_passo(3);
+          }
+        }
 
       }
 
@@ -273,4 +283,13 @@ void ligar_motores(int direita, int esquerda){
 
   }
 
+}
+
+void inverter_sentido(){
+
+  if(sentido == 1){
+    sentido = -1;
+  } else {
+    sentido = 1;
+  }
 }
