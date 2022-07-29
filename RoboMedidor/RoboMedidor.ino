@@ -9,7 +9,7 @@
 
 // Gerais
 int passo = 0;
-int distancia_limite = 10; // CM
+int distancia_limite = 15; // CM
 int sentido = 1;
 bool pode_andar = false;
 
@@ -150,15 +150,16 @@ void loop(){
 
             if(lado_parede_e_direita){
               if(sentido == 1){
-                ligar_motores(1, 0);
+                ligar_motores(0, -1);
               }else {
-                ligar_motores(-1, 0);
+                ligar_motores(0, 1);
               }
+
             }else {
               if(sentido == 1){
-                ligar_motores(0, 1);
+                ligar_motores(-1, 0);
               }else {
-                ligar_motores(0, -1);
+                ligar_motores(1, 0);
               }
             }
 
