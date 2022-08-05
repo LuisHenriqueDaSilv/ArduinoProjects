@@ -1,19 +1,13 @@
-#include <Arduino.h>
 #include <Dabble.h>
 
-// Bluetooth
-#define CUSTOM_SETTINGS
-#define INCLUDE_GAMEPAD_MODULE
-
 // Motores
-#define motor_direito_horario 9
-#define motor_direito_anti 8
-#define motor_esquerdo_horario 10
-#define motor_esquerdo_anti 11
+#define motor_direito_horario 4
+#define motor_direito_anti 5
+#define motor_esquerdo_horario 6
+#define motor_esquerdo_anti 7
 
 void setup(){
 
-  Serial.begin(19200);
   Dabble.begin(9600);
 
   pinMode(motor_direito_horario, OUTPUT);
@@ -23,70 +17,64 @@ void setup(){
 }
 
 void loop(){
-  
 
   Dabble.processInput();
-  Serial.println();
-  Serial.print("KeyPressed: ");
-
 
   if (GamePad.isUpPressed()){
-    andar();
-    Serial.print("UP");
+
+    ligar_motores(1, 1);
+
   }else if (GamePad.isDownPressed()){
-    re();
-    Serial.print("DOWN");
+
+    ligar_motores(-1, -1);
+
   }else if (GamePad.isLeftPressed()){
-    virar_esquerda();
-    Serial.print("Left");
+
+    ligar_motores(1, -1);
+
   } else if (GamePad.isRightPressed()){
-    virar_direita();
-    Serial.print("Right");
+
+    ligar_motores(-1, 1);
+
   } else {
-    frear();
+
+    desligar_motores();
+
+  }
+  
+}
+
+void ligar_motores(int direita, int esquerda){
+
+  switch(direita){
+
+    case -1:
+      digitalWrite(motor_direito_horario, LOW);
+      digitalWrite(motor_direito_anti, HIGH);
+      break;
+    case 1: 
+      digitalWrite(motor_direito_horario, HIGH);
+      digitalWrite(motor_direito_anti, LOW);
+      break;
+  }
+
+  switch(esquerda){
+
+    case -1: 
+      digitalWrite(motor_esquerdo_horario, LOW);
+      digitalWrite(motor_esquerdo_anti, HIGH);
+      break;
+    case  1: 
+      digitalWrite(motor_esquerdo_horario, HIGH);
+      digitalWrite(motor_esquerdo_anti, LOW);
+      break;
   }
 
 }
 
-
-void frear(){
+void desligar_motores(){
   digitalWrite(motor_direito_horario, LOW);
   digitalWrite(motor_direito_anti, LOW);
-
-  digitalWrite(motor_esquerdo_horario, LOW);
-  digitalWrite(motor_esquerdo_anti, LOW);
-}
-
-void andar(){
-
-  digitalWrite(motor_direito_horario, LOW);
-  digitalWrite(motor_direito_anti, HIGH);
-
-  digitalWrite(motor_esquerdo_horario, LOW);
-  digitalWrite(motor_esquerdo_anti, HIGH);
-}
-
-void re(){
-
-  digitalWrite(motor_direito_horario, HIGH);
-  digitalWrite(motor_direito_anti, LOW);
-
-  digitalWrite(motor_esquerdo_horario, HIGH);
-  digitalWrite(motor_esquerdo_anti, LOW);
-}
-
-void virar_direita(){
-  digitalWrite(motor_direito_horario, LOW);
-  digitalWrite(motor_direito_anti, LOW);
-
-  digitalWrite(motor_esquerdo_horario, LOW);
-  digitalWrite(motor_esquerdo_anti, HIGH);
-}
-
-void virar_esquerda(){
-
-  digitalWrite(motor_direito_horario, LOW);
-  digitalWrite(motor_direito_anti, HIGH);
 
   digitalWrite(motor_esquerdo_horario, LOW);
   digitalWrite(motor_esquerdo_anti, LOW);
