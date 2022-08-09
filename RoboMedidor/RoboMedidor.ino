@@ -1,5 +1,7 @@
 #include <Arduino.h>
 #include <Ultrasonic.h>
+#include <Wire.h> 
+#include <LiquidCrystal_I2C.h>
 
 // Motores:
 #define motor_direito_horario 5
@@ -7,12 +9,19 @@
 #define motor_esquerdo_horario 7
 #define motor_esquerdo_anti 6
 
+#define velocidade_motor_direito 10
+#define velocidade_motor_esquerdo 11
+
 // Gerais
 int passo = 0;
-int distancia_limite = 15; // CM
+int distancia_limite = 30; // CM
 int sentido = 1;
 bool pode_andar = false;
+int velocidade_motores = 155;
+bool medindo = false;
 
+volatile int pulsos_direita = 0; 
+volatile int pulsos_esquerda = 0; 
 
 // Sensores de distancia:
 #define sensor_frontal_echo A2
@@ -21,11 +30,11 @@ bool pode_andar = false;
 #define sensor_direito_echo A0
 #define sensor_direito_trig A1
 
-#define sensor_esquerdo_echo A5
-#define sensor_esquerdo_trig A4 
+#define sensor_esquerdo_echo 12
+#define sensor_esquerdo_trig 13 
 
-#define sensor_traseiro_echo 3
-#define sensor_traseiro_trig 2
+#define sensor_traseiro_echo 9
+#define sensor_traseiro_trig 8
 
 Ultrasonic ultrassonico_frontal(sensor_frontal_trig, sensor_frontal_echo);
 Ultrasonic ultrassonico_direito(sensor_direito_trig, sensor_direito_echo);
@@ -36,6 +45,10 @@ int distancia_frontal = 0;
 int distancia_direita = 0;
 int distancia_esquerda = 0;
 int distancia_traseira = 0;
+
+
+// LCD
+LiquidCrystal_I2C lcd(0x27,20,4);
 
 
 // Curva e alinhamento:
@@ -50,7 +63,6 @@ bool primeira_linha = true;
 
 
 
-
 void setup(){
   Serial.begin(9600);
 
@@ -58,6 +70,16 @@ void setup(){
   pinMode(motor_direito_anti, OUTPUT);
   pinMode(motor_esquerdo_horario, OUTPUT);
   pinMode(motor_esquerdo_anti, OUTPUT);
+  pinMode(velocidade_motor_direito, OUTPUT);
+  pinMode(velocidade_motor_esquerdo, OUTPUT);
+
+  analogWrite(velocidade_motor_direito, velocidade_motores);
+  analogWrite(velocidade_motor_esquerdo, velocidade_motores);
+
+
+  lcd.init();
+  lcd.backlight();
+
 }
 
 void loop(){
@@ -69,11 +91,12 @@ void loop(){
 
   switch(passo){
 
-    case 0: { //Procura a parede na frente do robo
+    case 0: { //Procura a parede na frente do roboz
 
       if(distancia_frontal >= distancia_limite){
         ligar_motores(-1, -1);
       } else {
+
         ligar_motores(1, 1);
         delay(50);
         ligar_motores(0, 0);
@@ -86,16 +109,16 @@ void loop(){
     case 1: {// Girar o robo para um lado que não tenha parede
 
       if(distancia_direita > distancia_limite){
-        ligar_motores(0, 1);
+        ligar_motores(-1, 1);
         
         lado_parede_e_direita = true;
         
       } else {
-        ligar_motores(1, 0);
+        ligar_motores(1, -1);
 
         lado_parede_e_direita = false;
       }
-      delay(1800);
+      delay(700);
       ligar_motores(0,0);
 
       comeco_de_linha = true;
@@ -117,6 +140,10 @@ void loop(){
         }
       }
 
+      if(!medindo && !corrigiu){
+        iniciar_medida();
+      }
+
 
       if(sentido == 1){
         pode_andar = distancia_frontal > distancia_limite;
@@ -124,6 +151,15 @@ void loop(){
         pode_andar = distancia_traseira > distancia_limite;
       }
 
+        if(medindo){
+          lcd.clear();
+          lcd.setCursor(0,0);
+          lcd.print("Medindo");
+        }else {
+          lcd.clear();
+          lcd.setCursor(0,0);
+          lcd.print("Não medindo");
+        }
 
       if(pode_andar){
 
@@ -167,25 +203,25 @@ void loop(){
 
             if(lado_parede_e_direita){
               if(sentido == 1){
-                ligar_motores(0, 1);
+                ligar_motores(-1, 1);
               }else {
-                ligar_motores(0, -1);
+                ligar_motores(1, -1);
               }
             }else {
               if(sentido == 1){
-                ligar_motores(1, 0);
+                ligar_motores(1, -1);
               }else {
-                ligar_motores(-1, 0);
+                ligar_motores(-1, 1);
               }
             }
           }
 
           if(millis() - momento_da_ultima_correcao > 5000){
-            delay(400);
+            delay(100);
           }else if (millis() - momento_da_ultima_correcao > 300){
-            delay(600);
+            delay(200);
           } else {
-            delay(800);
+            delay(300);
           }
 
           ligar_motores(0, 0);
@@ -194,6 +230,8 @@ void loop(){
           momento_da_ultima_correcao = millis();
           comeco_de_linha = true;
           corrigiu = true;
+          desligar_medicao();
+
 
         } else { //anda
           if(sentido == 1){
@@ -215,6 +253,8 @@ void loop(){
         delay(50);
         ligar_motores(0,0);
 
+        delay(2000);
+
 
         if(primeira_linha){
 
@@ -226,6 +266,8 @@ void loop(){
             delay(2000);
             inverter_sentido();
             corrigiu = false;
+            pulsos_direita = 0;
+            pulsos_esquerda = 0;
           } else {
             mudar_passo(3);
           }
@@ -242,7 +284,9 @@ void loop(){
   }
 
 
+
 }
+
 
 void mudar_passo(int proximo_passo){
   ligar_motores(0,0);
@@ -293,4 +337,31 @@ void inverter_sentido(){
   } else {
     sentido = 1;
   }
+}
+
+
+void iniciar_medida(){
+
+  medindo = true;
+
+  pulsos_direita = 0;
+  pulsos_esquerda = 0;
+
+  attachInterrupt(digitalPinToInterrupt(3), interrupcao_direita, FALLING);
+  attachInterrupt(digitalPinToInterrupt(2), interrupcao_esquerda, FALLING);
+}
+
+void interrupcao_direita(){
+  pulsos_direita++;
+}
+
+void interrupcao_esquerda(){
+  pulsos_esquerda++;
+}
+
+void desligar_medicao(){
+
+  medindo = false;
+  detachInterrupt(digitalPinToInterrupt(3));
+  detachInterrupt(digitalPinToInterrupt(2));
 }
