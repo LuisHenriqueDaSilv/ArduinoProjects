@@ -13,15 +13,15 @@
 #define velocidade_motor_esquerdo 11
 
 // Gerais
+#define distancia_limite 30 // CM
+int velocidade_motores = 170;
 int passo = 0;
-int distancia_limite = 30; // CM
 int sentido = 1;
 bool pode_andar = false;
-int velocidade_motores = 155;
 bool medindo = false;
 
 volatile int pulsos_direita = 0; 
-volatile int pulsos_esquerda = 0; 
+volatile int pulsos_esquerda = 0;
 
 // Sensores de distancia:
 #define sensor_frontal_echo A2
@@ -53,8 +53,7 @@ LiquidCrystal_I2C lcd(0x27,20,4);
 
 // Curva e alinhamento:
 
-bool comeco_de_linha = false;
-bool lado_parede_e_direita = false;
+bool primeira_vez_apos_correcao = false;
 int distancia_inicial_parede = 0;
 int variacao_de_distancia_da_parede = 0;
 int momento_da_ultima_correcao = 0; 
@@ -84,6 +83,10 @@ void setup(){
 
 void loop(){
 
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("Medindo");
+
   distancia_frontal = ultrassonico_frontal.Ranging(CM);
   distancia_direita = ultrassonico_direito.Ranging(CM);
   distancia_esquerda = ultrassonico_esquerdo.Ranging(CM);
@@ -98,7 +101,7 @@ void loop(){
       } else {
 
         ligar_motores(1, 1);
-        delay(50);
+        delay(75);
         ligar_motores(0, 0);
 
         mudar_passo(1);
@@ -106,22 +109,14 @@ void loop(){
       break;
     }
 
-    case 1: {// Girar o robo para um lado que não tenha parede
+    case 1: {
 
-      if(distancia_direita > distancia_limite){
-        ligar_motores(-1, 1);
+      ligar_motores(-1, 1);
         
-        lado_parede_e_direita = true;
-        
-      } else {
-        ligar_motores(1, -1);
-
-        lado_parede_e_direita = false;
-      }
       delay(700);
       ligar_motores(0,0);
 
-      comeco_de_linha = true;
+      primeira_vez_apos_correcao = true;
 
       mudar_passo(2);
 
@@ -130,20 +125,13 @@ void loop(){
 
     case 2: {
 
-      if(comeco_de_linha){
-        comeco_de_linha = false;
 
-        if(lado_parede_e_direita){
-          distancia_inicial_parede = distancia_direita;
-        }else {
-          distancia_inicial_parede = distancia_esquerda;
-        }
+      if(primeira_vez_apos_correcao){
+
+        primeira_vez_apos_correcao = false;
+        distancia_inicial_parede = distancia_direita;
+
       }
-
-      if(!medindo && !corrigiu){
-        iniciar_medida();
-      }
-
 
       if(sentido == 1){
         pode_andar = distancia_frontal > distancia_limite;
@@ -151,26 +139,11 @@ void loop(){
         pode_andar = distancia_traseira > distancia_limite;
       }
 
-        if(medindo){
-          lcd.clear();
-          lcd.setCursor(0,0);
-          lcd.print("Medindo");
-        }else {
-          lcd.clear();
-          lcd.setCursor(0,0);
-          lcd.print("Não medindo");
-        }
-
       if(pode_andar){
 
-        if(lado_parede_e_direita){
-          variacao_de_distancia_da_parede = distancia_direita - distancia_inicial_parede;
-        }else {
-          variacao_de_distancia_da_parede = distancia_esquerda - distancia_inicial_parede;
-        }
+        variacao_de_distancia_da_parede = distancia_direita - distancia_inicial_parede;
 
         if(abs(variacao_de_distancia_da_parede) > 5 && abs(variacao_de_distancia_da_parede) < 30){
-
 
           // Freia o robo e espera um segundo
           if(sentido == 1){
@@ -178,48 +151,36 @@ void loop(){
           } else {
             ligar_motores(-1, -1);
           }
-          delay(50);
+          delay(75);
           ligar_motores(0,0);
-          delay(1000);
+          delay(2000);
 
           if(variacao_de_distancia_da_parede > 0){
 
-            if(lado_parede_e_direita){
-              if(sentido == 1){
-                ligar_motores(0, -1);
-              }else {
-                ligar_motores(0, 1);
-              }
-
+            if(sentido == 1){
+              ligar_motores(0, -1);
             }else {
-              if(sentido == 1){
-                ligar_motores(-1, 0);
-              }else {
-                ligar_motores(1, 0);
-              }
+              ligar_motores(0, 1);
             }
 
           }else {
 
-            if(lado_parede_e_direita){
-              if(sentido == 1){
-                ligar_motores(-1, 1);
-              }else {
-                ligar_motores(1, -1);
-              }
+            if(sentido == 1){
+              ligar_motores(-1, 1);
             }else {
-              if(sentido == 1){
-                ligar_motores(1, -1);
-              }else {
-                ligar_motores(-1, 1);
-              }
+              ligar_motores(1, -1);
             }
+
           }
 
           if(millis() - momento_da_ultima_correcao > 5000){
-            delay(100);
-          }else if (millis() - momento_da_ultima_correcao > 300){
             delay(200);
+          }else if (millis() - momento_da_ultima_correcao > 4000){
+            delay(225);
+          }else if (millis() - momento_da_ultima_correcao > 3000){
+            delay(250);
+          }else if (millis() - momento_da_ultima_correcao > 2000){
+            delay(275);
           } else {
             delay(300);
           }
@@ -228,10 +189,8 @@ void loop(){
 
           delay(1000);
           momento_da_ultima_correcao = millis();
-          comeco_de_linha = true;
+          primeira_vez_apos_correcao = true;
           corrigiu = true;
-          desligar_medicao();
-
 
         } else { //anda
           if(sentido == 1){
@@ -250,11 +209,12 @@ void loop(){
           ligar_motores(-1, -1);
         }
 
-        delay(50);
+        delay(75);
         ligar_motores(0,0);
 
         delay(2000);
 
+        primeira_vez_apos_correcao = true;
 
         if(primeira_linha){
 
@@ -263,11 +223,10 @@ void loop(){
         } else { 
 
           if(corrigiu) {
-            delay(2000);
+
             inverter_sentido();
             corrigiu = false;
-            pulsos_direita = 0;
-            pulsos_esquerda = 0;
+            
           } else {
             mudar_passo(3);
           }
@@ -275,13 +234,20 @@ void loop(){
 
       }
 
-
       break;
+
+    }
+
+    case 3: {
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("Finalizado");
     }
     
     default:
       ligar_motores(0,0);
   }
+
 
 
 
@@ -340,7 +306,7 @@ void inverter_sentido(){
 }
 
 
-void iniciar_medida(){
+void iniciar_medicao(){
 
   medindo = true;
 
