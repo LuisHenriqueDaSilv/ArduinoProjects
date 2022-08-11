@@ -113,7 +113,7 @@ void loop(){
 
       ligar_motores(-1, 1);
         
-      delay(700);
+      delay(800);
       ligar_motores(0,0);
 
       primeira_vez_apos_correcao = true;
@@ -220,15 +220,25 @@ void loop(){
 
           primeira_linha = false;
           inverter_sentido();
+
+          iniciar_medicao();
         } else { 
 
           if(corrigiu) {
 
             inverter_sentido();
             corrigiu = false;
+            iniciar_medicao();
             
           } else {
-            mudar_passo(3);
+
+            desligar_medicao();
+            lcd.clear();
+            lcd.print(pulsos_direita);
+            lcd.setCursor(0, 1);
+            lcd.print(pulsos_esquerda);
+
+            mudar_passo(0);
           }
         }
 
@@ -237,18 +247,10 @@ void loop(){
       break;
 
     }
-
-    case 3: {
-      lcd.clear();
-      lcd.setCursor(0,0);
-      lcd.print("Finalizado");
-    }
     
     default:
       ligar_motores(0,0);
   }
-
-
 
 
 }
