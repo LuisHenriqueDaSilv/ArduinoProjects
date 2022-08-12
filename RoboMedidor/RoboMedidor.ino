@@ -83,10 +83,6 @@ void setup(){
 
 void loop(){
 
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("Medindo");
-
   distancia_frontal = ultrassonico_frontal.Ranging(CM);
   distancia_direita = ultrassonico_direito.Ranging(CM);
   distancia_esquerda = ultrassonico_esquerdo.Ranging(CM);
@@ -95,6 +91,13 @@ void loop(){
   switch(passo){
 
     case 0: { //Procura a parede na frente do roboz
+
+
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("Buscando");
+      lcd.setCursor(0,1);
+      lcd.print("Parede");
 
       if(distancia_frontal >= distancia_limite){
         ligar_motores(-1, -1);
@@ -111,6 +114,10 @@ void loop(){
 
     case 1: {
 
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("Virando");
+
       ligar_motores(-1, 1);
         
       delay(800);
@@ -125,6 +132,18 @@ void loop(){
 
     case 2: {
 
+      if(corrigiu){
+
+        lcd.clear();
+        lcd.setCursor(0,0);
+        lcd.print("Fazendo");
+        lcd.setCursor(0,1);
+        lcd.print("Correções");
+      } else {
+        lcd.clear();
+        lcd.setCursor(0,0);
+        lcd.print("Medindo");
+      }
 
       if(primeira_vez_apos_correcao){
 
@@ -233,10 +252,18 @@ void loop(){
           } else {
 
             desligar_medicao();
+
             lcd.clear();
+            lcd.setCursor(0, 0);
+            lcd.print("Direita:");
+            lcd.setCursor(10, 0);
             lcd.print(pulsos_direita);
             lcd.setCursor(0, 1);
+            lcd.print("Direita:");
+            lcd.setCursor(10, 1);
             lcd.print(pulsos_esquerda);
+
+            delay(5000);
 
             mudar_passo(0);
           }
