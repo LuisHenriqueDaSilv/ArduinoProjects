@@ -14,7 +14,7 @@
 
 // Gerais
 #define distancia_limite 30 // CM
-int velocidade_motores = 170;
+int velocidade_motores = 255;
 int passo = 0;
 int sentido = 1;
 bool pode_andar = false;
