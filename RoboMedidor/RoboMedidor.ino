@@ -3,96 +3,56 @@
 #include <Wire.h> 
 #include <LiquidCrystal_I2C.h>
 
-// Motores:
-#define motor_direito_horario 5
-#define motor_direito_anti 4
-#define motor_esquerdo_horario 7
-#define motor_esquerdo_anti 6
-
-#define PINO_VELOCIDADE_MOTORES 10
-
 // Gerais
 #define DISTANCIA_LIMITE 20 // CM
-int velocidade_motores = 255;
-int passo = 0;
-int sentido = 1;
-bool pode_andar = false;
-bool medindo = false;
+byte passo = 0;
+bool indo_para_frente = true;
 String modo = String("desativado");
-
-//Calibragem
-#define PINO_BOTAO 11
-byte valor_botao;
-byte valor_anterior_botao;
+byte valor_anterior_botao_troca_de_modo;
 
 volatile int pulsos_direita = 0; 
 volatile int pulsos_esquerda = 0;
 
 // LCD
-
-String primeira_linha_atual_lcd= String("");
-String segunda_linha_atual_lcd= String("");
-
-// Sensores de distancia:
-#define SENSOR_FRONTAL_ECHO A2
-#define SENSOR_FRONTAL_TRIG A3
-
-#define SENSOR_DIREITA_ECHO A0
-#define SENSOR_DIREITA_TRIG A1
-
-#define SENSOR_ESQUERDO_ECHO 12
-#define SENSOR_ESQUERDO_TRIG 13 
-
-#define SENSOR_TRASEIRO_ECHO 9
-#define SENSOR_TRASEIRO_TRIG 8
-
-Ultrasonic ultrassonico_frontal(SENSOR_FRONTAL_TRIG, SENSOR_FRONTAL_ECHO);
-Ultrasonic ultrassonico_direito(SENSOR_DIREITA_TRIG, SENSOR_DIREITA_ECHO);
-Ultrasonic ultrassonico_esquerdo(SENSOR_ESQUERDO_TRIG, SENSOR_ESQUERDO_ECHO);
-Ultrasonic ultrassonico_traseiro(SENSOR_TRASEIRO_TRIG, SENSOR_TRASEIRO_ECHO);
-
-int distancia_frontal = 0;
-int distancia_direita = 0;
-int distancia_esquerda = 0;
-int distancia_traseira = 0;
-
-// LCD
 LiquidCrystal_I2C lcd(0x27,20,4);
 
-// Curva e alinhamento:
+String primeira_linha_atual_lcd = String("");
+String segunda_linha_atual_lcd = String("");
 
+// Sensores de distancia:
+Ultrasonic ultrassonico_frontal(A3, A2); //Trig-Echo
+Ultrasonic ultrassonico_direito(A1, A0); //Trig-Echo
+Ultrasonic ultrassonico_esquerdo(13, 12); //Trig-Echo
+Ultrasonic ultrassonico_traseiro(8, 9); //Trig-Echo
+
+// Curva e alinhamento:
 bool primeira_vez_apos_correcao = false;
 int distancia_inicial_parede = 0;
-int variacao_de_distancia_da_parede = 0;
 int momento_da_ultima_correcao = 0; 
 bool corrigiu = false;
 bool primeira_linha = true;
 
 void setup(){
-  Serial.begin(9600);
 
-  pinMode(motor_direito_horario, OUTPUT);
-  pinMode(motor_direito_anti, OUTPUT);
-  pinMode(motor_esquerdo_horario, OUTPUT);
-  pinMode(motor_esquerdo_anti, OUTPUT);
-  pinMode(PINO_VELOCIDADE_MOTORES, OUTPUT);
+  pinMode(5, OUTPUT); // Direito horario
+  pinMode(4, OUTPUT); // Direito anti
+  pinMode(7, OUTPUT); // Esquerdo Horario
+  pinMode(6, OUTPUT); // Esquero anti
+  pinMode(10, OUTPUT); // Pino de velocidade dos motores
+  pinMode(11, INPUT); // Pino do botão para troca de modo
 
-  pinMode(PINO_BOTAO, INPUT);
+  analogWrite(10, 255); // Pino de velocidade dos motores
 
-  analogWrite(PINO_VELOCIDADE_MOTORES, velocidade_motores);
-
+  // LCD
   lcd.init();
   lcd.backlight();
-
 }
-
 
 void loop(){
 
-  valor_botao = digitalRead(PINO_BOTAO);
-
-  if(valor_anterior_botao != valor_botao){
-    if(valor_botao == 1){
+  byte valor_atual_botao_troca_de_modo = digitalRead(11); // Pino do botão para troca de modo
+  if(valor_anterior_botao_troca_de_modo != valor_atual_botao_troca_de_modo){
+    if(valor_atual_botao_troca_de_modo == 1){
 
       ligar_motores(0,0);
 
@@ -105,7 +65,7 @@ void loop(){
       }
 
     }
-    valor_anterior_botao = valor_botao;
+    valor_anterior_botao_troca_de_modo = valor_atual_botao_troca_de_modo;
   }
 
   if(modo == "calibrando"){
@@ -115,14 +75,15 @@ void loop(){
   } else if(modo == "medindo") {
 
     escrever_lcd("Medindo", "");
-    distancia_frontal = ultrassonico_frontal.Ranging(CM);
-    distancia_direita = ultrassonico_direito.Ranging(CM);
-    distancia_esquerda = ultrassonico_esquerdo.Ranging(CM);
-    distancia_traseira = ultrassonico_traseiro.Ranging(CM);
+
+    int distancia_frontal = ultrassonico_frontal.Ranging(CM);
+    int distancia_direita = ultrassonico_direito.Ranging(CM);
+    int distancia_esquerda = ultrassonico_esquerdo.Ranging(CM);
+    int distancia_traseira = ultrassonico_traseiro.Ranging(CM);
 
     switch(passo){
 
-      case 0: { //Procura a parede na frente do roboz
+      case 0: {
 
         if(distancia_frontal >= DISTANCIA_LIMITE){
           ligar_motores(-1, -1);
@@ -132,7 +93,8 @@ void loop(){
           delay(75);
           ligar_motores(0, 0);
 
-          mudar_passo(1);
+          passo = 1;
+          delay(2000);
         }
         break;
       }
@@ -146,7 +108,8 @@ void loop(){
 
         primeira_vez_apos_correcao = true;
 
-        mudar_passo(2);
+        passo = 2;
+        delay(2000);
 
         break;
       }
@@ -160,7 +123,9 @@ void loop(){
 
         }
 
-        if(sentido == 1){
+        bool pode_andar = false;
+
+        if(indo_para_frente){
           pode_andar = distancia_frontal > DISTANCIA_LIMITE;
         }else {
           pode_andar = distancia_traseira > DISTANCIA_LIMITE;
@@ -168,12 +133,12 @@ void loop(){
 
         if(pode_andar){
 
-          variacao_de_distancia_da_parede = distancia_direita - distancia_inicial_parede;
+          int variacao_de_distancia_da_parede = distancia_direita - distancia_inicial_parede;
 
           if(abs(variacao_de_distancia_da_parede) > 5 && abs(variacao_de_distancia_da_parede) < 30){
 
             // Freia o robo e espera um segundo
-            if(sentido == 1){
+            if(indo_para_frente){
               ligar_motores(1, 1);
             } else {
               ligar_motores(-1, -1);
@@ -184,7 +149,7 @@ void loop(){
 
             if(variacao_de_distancia_da_parede > 0){
 
-              if(sentido == 1){
+              if(indo_para_frente){
                 ligar_motores(0, -1);
               }else {
                 ligar_motores(0, 1);
@@ -192,7 +157,7 @@ void loop(){
 
             }else {
 
-              if(sentido == 1){
+              if(indo_para_frente){
                 ligar_motores(-1, 1);
               }else {
                 ligar_motores(1, -1);
@@ -220,7 +185,7 @@ void loop(){
             corrigiu = true;
 
           } else { //anda
-            if(sentido == 1){
+            if(indo_para_frente){
               ligar_motores(-1, -1);
             } else {
               ligar_motores(1, 1);
@@ -230,7 +195,7 @@ void loop(){
         } else {
 
 
-          if(sentido == 1){
+          if(indo_para_frente){
             ligar_motores(1, 1);
           } else {
             ligar_motores(-1, -1);
@@ -246,30 +211,27 @@ void loop(){
           if(primeira_linha){
 
             primeira_linha = false;
-            inverter_sentido();
+            indo_para_frente = !indo_para_frente;
 
-            iniciar_medicao();
           } else { 
 
             if(corrigiu) {
 
-              inverter_sentido();
+              indo_para_frente = !indo_para_frente;
               corrigiu = false;
-              iniciar_medicao();
               
             } else {
 
-              desligar_medicao();
-
-              delay(5000);
 
               mudar_passo(0);
+              delay(2000);
             }
           }
 
         }
 
         break;
+
 
       }
       
@@ -281,6 +243,23 @@ void loop(){
     escrever_lcd("Desativado", "");
   }
 
+
+}
+
+
+void reiniciar_robo(){
+
+  desligar_medicao();
+  pulsos_esquerda = 0;
+  pulsos_direita = 0;
+
+  primeira_vez_apos_correcao = false;
+  distancia_inicial_parede  = 0;
+  momento_da_ultima_correcao = 0;
+  corrigiu = false;
+  primeira_linha = true;
+  passo = 0;
+  indo_para_frente = true;
 }
 
 void escrever_lcd(String linha_1, String linha_2){
@@ -304,7 +283,7 @@ void escrever_lcd(String linha_1, String linha_2){
   }
 }
 
-void mudar_passo(int proximo_passo){
+void mudar_passo(byte proximo_passo){
   ligar_motores(0,0);
   delay(2000); 
   passo = proximo_passo;
@@ -312,52 +291,42 @@ void mudar_passo(int proximo_passo){
 
 void ligar_motores(int direita, int esquerda){
 
-
   switch(direita){
 
     case -1:
-	    digitalWrite(motor_direito_horario, LOW);
-	    digitalWrite(motor_direito_anti, HIGH);
+	    digitalWrite(5, LOW); // Direito horario
+	    digitalWrite(4, HIGH); // Direito anti
       break;
     case 1: 
-	    digitalWrite(motor_direito_horario, HIGH);
-	    digitalWrite(motor_direito_anti, LOW);
+	    digitalWrite(5, HIGH); // Direito horario
+	    digitalWrite(4, LOW); // Direito anti
       break;
     default: 
-      digitalWrite(motor_direito_horario, LOW);
-	    digitalWrite(motor_direito_anti, LOW);
+      digitalWrite(5, LOW); //Direito horario
+	    digitalWrite(4, LOW); // Direito anti
   }
 
   switch(esquerda){
 
     case -1: 
-	    digitalWrite(motor_esquerdo_horario, LOW);
-	    digitalWrite(motor_esquerdo_anti, HIGH);
+	    digitalWrite(7, LOW); // Esquerdo horario
+	    digitalWrite(6, HIGH); // Esquerdo anti
       break;
     case  1: 
-	    digitalWrite(motor_esquerdo_horario, HIGH);
-	    digitalWrite(motor_esquerdo_anti, LOW);
+	    digitalWrite(7, HIGH); // Esquerdo horario
+	    digitalWrite(6, LOW); // Esquerdo anti
       break;
     default: 
-      digitalWrite(motor_esquerdo_horario, LOW);
-	    digitalWrite(motor_esquerdo_anti, LOW);
+      digitalWrite(7, LOW); // Esquerdo horario
+	    digitalWrite(6, LOW); // Esquerdo anti
 
   }
 
 }
 
-void inverter_sentido(){
-
-  if(sentido == 1){
-    sentido = -1;
-  } else {
-    sentido = 1;
-  }
-}
 
 void iniciar_medicao(){
 
-  medindo = true;
 
   pulsos_direita = 0;
   pulsos_esquerda = 0;
@@ -368,15 +337,15 @@ void iniciar_medicao(){
 
 void interrupcao_direita(){
   pulsos_direita++;
-}
+};
 
 void interrupcao_esquerda(){
   pulsos_esquerda++;
-}
+};
 
 void desligar_medicao(){
 
-  medindo = false;
   detachInterrupt(digitalPinToInterrupt(3));
   detachInterrupt(digitalPinToInterrupt(2));
 }
+
