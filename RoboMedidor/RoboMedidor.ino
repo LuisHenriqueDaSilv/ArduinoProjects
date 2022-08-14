@@ -6,12 +6,15 @@
 // Gerais
 #define DISTANCIA_LIMITE 20 // CM
 byte passo = 0;
-bool indo_para_frente = true;
+bool indo_para_frente = false;
 String modo = String("desativado");
 byte valor_anterior_botao_troca_de_modo;
+float media_de_pulsos_por_cm;
+int contador_de_media = 0;
 
 volatile int pulsos_direita = 0; 
 volatile int pulsos_esquerda = 0;
+
 
 // LCD
 LiquidCrystal_I2C lcd(0x27,20,4);
@@ -34,6 +37,8 @@ bool primeira_linha = true;
 
 void setup(){
 
+  Serial.begin(9600);
+
   pinMode(5, OUTPUT); // Direito horario
   pinMode(4, OUTPUT); // Direito anti
   pinMode(7, OUTPUT); // Esquerdo Horario
@@ -41,7 +46,7 @@ void setup(){
   pinMode(10, OUTPUT); // Pino de velocidade dos motores
   pinMode(11, INPUT); // Pino do botão para troca de modo
 
-  analogWrite(10, 255); // Pino de velocidade dos motores
+  analogWrite(10, 155); // Pino de velocidade dos motores
 
   // LCD
   lcd.init();
@@ -50,27 +55,93 @@ void setup(){
 
 void loop(){
 
+
   byte valor_atual_botao_troca_de_modo = digitalRead(11); // Pino do botão para troca de modo
+
   if(valor_anterior_botao_troca_de_modo != valor_atual_botao_troca_de_modo){
     if(valor_atual_botao_troca_de_modo == 1){
 
       ligar_motores(0,0);
 
-      if(modo == "medindo"){
-        modo = String("calibrando");
-      }else if(modo == "calibrando") {
+      if(modo == "calibrando"){
+        modo = String("medindo");
+      }else if(modo == "medindo") {
         modo = String("desativado");
       } else if(modo == "desativado"){
-        modo = String("medindo");
+        modo = String("calibrando");
       }
 
     }
     valor_anterior_botao_troca_de_modo = valor_atual_botao_troca_de_modo;
   }
 
+
   if(modo == "calibrando"){
-    
+
     escrever_lcd("Calibrando", "");
+
+    int distancia_traseira = ultrassonico_traseiro.Ranging(CM);
+    int distancia_frontal = ultrassonico_frontal.Ranging(CM);
+
+    if(indo_para_frente){
+
+      if(distancia_traseira < 50){
+        ligar_motores(-1,-1);
+      } else {
+        ligar_motores(1,1);
+        delay(125);
+        ligar_motores(0,0);
+
+        desligar_medicao();
+
+        int media_de_pulsos = (pulsos_direita + pulsos_esquerda) / 2;
+        int variacao_de_distancia = distancia_traseira - distancia_inicial_parede;
+
+        media_de_pulsos_por_cm = media_de_pulsos_por_cm + (media_de_pulsos/variacao_de_distancia);
+
+        escrever_lcd(String(media_de_pulsos/variacao_de_distancia), String(media_de_pulsos_por_cm/contador_de_media));
+        
+        indo_para_frente = false;
+        delay(2000);
+
+        contador_de_media++;
+        iniciar_medicao();
+
+        distancia_inicial_parede = distancia_traseira;
+
+      }
+      
+    } else {
+
+      if(distancia_traseira > 20){
+        ligar_motores(1,1);
+      } else {
+
+        ligar_motores(-1,-1);
+        delay(125);
+        ligar_motores(0,0);
+
+        desligar_medicao();
+
+        int media_de_pulsos = (pulsos_direita + pulsos_esquerda) / 2;
+        int variacao_de_distancia = distancia_inicial_parede - distancia_traseira;
+
+        contador_de_media++;
+        media_de_pulsos_por_cm = media_de_pulsos_por_cm + (media_de_pulsos/variacao_de_distancia);
+
+        escrever_lcd(String(media_de_pulsos/variacao_de_distancia), String(media_de_pulsos_por_cm/contador_de_media));
+
+        indo_para_frente = true;
+        delay(2000);
+
+        iniciar_medicao();
+
+        distancia_inicial_parede = distancia_traseira;
+
+
+      }
+
+    }
     
   } else if(modo == "medindo") {
 
@@ -259,7 +330,7 @@ void reiniciar_robo(){
   corrigiu = false;
   primeira_linha = true;
   passo = 0;
-  indo_para_frente = true;
+  indo_para_frente = false;
 }
 
 void escrever_lcd(String linha_1, String linha_2){
