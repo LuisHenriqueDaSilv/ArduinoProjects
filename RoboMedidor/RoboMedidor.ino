@@ -2,6 +2,7 @@
 #include <Ultrasonic.h>
 #include <Wire.h> 
 #include <LiquidCrystal_I2C.h>
+#include <EEPROM.h>
 
 // Gerais
 #define DISTANCIA_LIMITE 20 // CM
@@ -9,8 +10,9 @@ byte passo = 0;
 bool indo_para_frente = false;
 String modo = String("desativado");
 byte valor_anterior_botao_troca_de_modo;
-float media_de_pulsos_por_cm;
-int contador_de_media = 0;
+int contador_de_calibragem = 0;
+float pulsos_por_cm_de_todas_as_voltas = 0.0;
+float media_de_pulsos_por_cm = 0.0;
 
 volatile int pulsos_direita = 0; 
 volatile int pulsos_esquerda = 0;
@@ -46,11 +48,14 @@ void setup(){
   pinMode(10, OUTPUT); // Pino de velocidade dos motores
   pinMode(11, INPUT); // Pino do botão para troca de modo
 
-  analogWrite(10, 155); // Pino de velocidade dos motores
+  analogWrite(10, 130); // Pino de velocidade dos motores
 
   // LCD
   lcd.init();
   lcd.backlight();
+
+  media_de_pulsos_por_cm = ler_eeprom();
+
 }
 
 void loop(){
@@ -81,65 +86,86 @@ void loop(){
     escrever_lcd("Calibrando", "");
 
     int distancia_traseira = ultrassonico_traseiro.Ranging(CM);
-    int distancia_frontal = ultrassonico_frontal.Ranging(CM);
 
-    if(indo_para_frente){
+    if(contador_de_calibragem = 30){
 
-      if(distancia_traseira < 50){
-        ligar_motores(-1,-1);
-      } else {
-        ligar_motores(1,1);
-        delay(125);
-        ligar_motores(0,0);
+      //Salva média
+      gravar_eeprom(media_de_pulsos_por_cm);
+      reiniciar_robo();
 
-        desligar_medicao();
+      modo = "desativado";
 
-        int media_de_pulsos = (pulsos_direita + pulsos_esquerda) / 2;
-        int variacao_de_distancia = distancia_traseira - distancia_inicial_parede;
-
-        media_de_pulsos_por_cm = media_de_pulsos_por_cm + (media_de_pulsos/variacao_de_distancia);
-
-        escrever_lcd(String(media_de_pulsos/variacao_de_distancia), String(media_de_pulsos_por_cm/contador_de_media));
-        
-        indo_para_frente = false;
-        delay(2000);
-
-        contador_de_media++;
-        iniciar_medicao();
-
-        distancia_inicial_parede = distancia_traseira;
-
-      }
-      
     } else {
 
-      if(distancia_traseira > 20){
-        ligar_motores(1,1);
+      if(indo_para_frente){
+
+        if(distancia_traseira < 70){
+          ligar_motores(-1,-1);
+        } else {
+          ligar_motores(1,1);
+          delay(125);
+          ligar_motores(0,0);
+
+          desligar_medicao();
+
+          // Medir media
+
+
+          contador_de_calibragem++;
+          float variacao_de_distancia = distancia_traseira - distancia_inicial_parede;
+          float pulsos = (pulsos_direita + pulsos_esquerda)/2;
+
+          pulsos_por_cm_de_todas_as_voltas = pulsos_por_cm_de_todas_as_voltas + (pulsos/variacao_de_distancia);
+
+          indo_para_frente = false;
+          delay(2000);
+
+          iniciar_medicao();
+
+          distancia_inicial_parede = distancia_traseira;
+
+        }
+        
       } else {
 
-        ligar_motores(-1,-1);
-        delay(125);
-        ligar_motores(0,0);
+        if(distancia_traseira > 10){
+          ligar_motores(1,1);
+        } else {
 
-        desligar_medicao();
+          ligar_motores(-1,-1);
+          delay(125);
+          ligar_motores(0,0);
 
-        int media_de_pulsos = (pulsos_direita + pulsos_esquerda) / 2;
-        int variacao_de_distancia = distancia_inicial_parede - distancia_traseira;
-
-        contador_de_media++;
-        media_de_pulsos_por_cm = media_de_pulsos_por_cm + (media_de_pulsos/variacao_de_distancia);
-
-        escrever_lcd(String(media_de_pulsos/variacao_de_distancia), String(media_de_pulsos_por_cm/contador_de_media));
-
-        indo_para_frente = true;
-        delay(2000);
-
-        iniciar_medicao();
-
-        distancia_inicial_parede = distancia_traseira;
+          desligar_medicao();
 
 
-      }
+          contador_de_calibragem++;
+          float variacao_de_distancia = distancia_inicial_parede - distancia_traseira;
+          float pulsos = (pulsos_direita + pulsos_esquerda)/2;
+
+          pulsos_por_cm_de_todas_as_voltas = pulsos_por_cm_de_todas_as_voltas + (pulsos/variacao_de_distancia);
+
+          indo_para_frente = false;
+          delay(2000);
+
+          iniciar_medicao();
+
+          distancia_inicial_parede = distancia_traseira;
+
+
+          indo_para_frente = true;
+          delay(2000);
+
+          contador_de_calibragem++;
+          iniciar_medicao();
+
+          distancia_inicial_parede = distancia_traseira;
+
+
+        }
+      
+    }
+
 
     }
     
@@ -320,6 +346,8 @@ void loop(){
 
 void reiniciar_robo(){
 
+  media_de_pulsos_por_cm = ler_eeprom();
+
   desligar_medicao();
   pulsos_esquerda = 0;
   pulsos_direita = 0;
@@ -420,3 +448,11 @@ void desligar_medicao(){
   detachInterrupt(digitalPinToInterrupt(2));
 }
 
+
+void gravar_eeprom(float x){
+  EEPROM.write(0,int(x));
+  EEPROM.write (0+1,int((x-int(x))*100));
+}
+float ler_eeprom(){
+  return float(EEPROM.read(0))+ float(EEPROM.read(0+1))/100;
+}
