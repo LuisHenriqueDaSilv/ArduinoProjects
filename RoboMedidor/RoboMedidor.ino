@@ -5,17 +5,19 @@
 #include <EEPROM.h>
 
 // Gerais
-#define DISTANCIA_LIMITE 20 // CM
-byte passo = 0;
-bool indo_para_frente = false;
+#define DISTANCIA_LIMITE 10 // CM
+int passo = 0;
 String modo = String("desativado");
 byte valor_anterior_botao_troca_de_modo;
-int contador_de_calibragem = 0;
-float pulsos_por_cm_de_todas_as_voltas = 0.0;
-float media_de_pulsos_por_cm = 0.0;
 
+// Calibrador/Medicao
+float media_de_pulsos_por_cm = 0.0;
+float distancia_total_percorrida_calibrador = 0;
+float pulsos_totais_calibrador = 0;
+int contador_calibrador = 0;
 volatile int pulsos_direita = 0; 
 volatile int pulsos_esquerda = 0;
+bool indo_para_frente = false;
 
 
 // LCD
@@ -48,7 +50,7 @@ void setup(){
   pinMode(10, OUTPUT); // Pino de velocidade dos motores
   pinMode(11, INPUT); // Pino do botão para troca de modo
 
-  analogWrite(10, 130); // Pino de velocidade dos motores
+  analogWrite(10, 170); // Pino de velocidade dos motores
 
   // LCD
   lcd.init();
@@ -56,10 +58,13 @@ void setup(){
 
   media_de_pulsos_por_cm = ler_eeprom();
 
+  escrever_lcd(String(media_de_pulsos_por_cm), String(""));
+  delay(5000);
+  iniciar_medicao();
+
 }
 
 void loop(){
-
 
   byte valor_atual_botao_troca_de_modo = digitalRead(11); // Pino do botão para troca de modo
 
@@ -68,12 +73,12 @@ void loop(){
 
       ligar_motores(0,0);
 
-      if(modo == "calibrando"){
-        modo = String("medindo");
-      }else if(modo == "medindo") {
+      if(modo == "medindo"){
+        modo = String("calibrando");
+      }else if(modo == "calibrando") {
         modo = String("desativado");
       } else if(modo == "desativado"){
-        modo = String("calibrando");
+        modo = String("medindo");
       }
 
     }
@@ -87,86 +92,67 @@ void loop(){
 
     int distancia_traseira = ultrassonico_traseiro.Ranging(CM);
 
-    if(contador_de_calibragem = 30){
-
-      //Salva média
-      gravar_eeprom(media_de_pulsos_por_cm);
+    if(contador_calibrador > 100){
+      gravar_eeprom(float(pulsos_totais_calibrador/distancia_total_percorrida_calibrador));
+      delay(2000);
+      media_de_pulsos_por_cm = ler_eeprom();
       reiniciar_robo();
-
-      modo = "desativado";
 
     } else {
 
       if(indo_para_frente){
 
-        if(distancia_traseira < 70){
+        if(distancia_traseira < 50){
           ligar_motores(-1,-1);
         } else {
-          ligar_motores(1,1);
-          delay(125);
-          ligar_motores(0,0);
 
           desligar_medicao();
 
-          // Medir media
+          ligar_motores(1,1);
+          delay(100);
+          ligar_motores(0,0);
 
+          float media_de_pulsos_da_ultima_volta = (pulsos_direita + pulsos_esquerda)/2;
+          pulsos_totais_calibrador = pulsos_totais_calibrador + media_de_pulsos_da_ultima_volta;
 
-          contador_de_calibragem++;
           float variacao_de_distancia = distancia_traseira - distancia_inicial_parede;
-          float pulsos = (pulsos_direita + pulsos_esquerda)/2;
+          distancia_total_percorrida_calibrador = distancia_total_percorrida_calibrador+variacao_de_distancia;
 
-          pulsos_por_cm_de_todas_as_voltas = pulsos_por_cm_de_todas_as_voltas + (pulsos/variacao_de_distancia);
+          delay(1000);
 
           indo_para_frente = false;
-          delay(2000);
-
-          iniciar_medicao();
+          contador_calibrador++;
 
           distancia_inicial_parede = distancia_traseira;
-
+          iniciar_medicao();
         }
-        
-      } else {
 
-        if(distancia_traseira > 10){
+      } else {
+        if(distancia_traseira > DISTANCIA_LIMITE){
           ligar_motores(1,1);
         } else {
-
-          ligar_motores(-1,-1);
-          delay(125);
-          ligar_motores(0,0);
-
           desligar_medicao();
 
+          ligar_motores(-1,-1);
+          delay(100);
+          ligar_motores(0,0);
 
-          contador_de_calibragem++;
-          float variacao_de_distancia = distancia_inicial_parede - distancia_traseira;
-          float pulsos = (pulsos_direita + pulsos_esquerda)/2;
 
-          pulsos_por_cm_de_todas_as_voltas = pulsos_por_cm_de_todas_as_voltas + (pulsos/variacao_de_distancia);
+          float media_de_pulsos_da_ultima_volta = (pulsos_direita + pulsos_esquerda)/2;
+          pulsos_totais_calibrador = pulsos_totais_calibrador + media_de_pulsos_da_ultima_volta;
 
-          indo_para_frente = false;
-          delay(2000);
+          float variacao_de_distancia = distancia_traseira - distancia_inicial_parede;
+          distancia_total_percorrida_calibrador = distancia_total_percorrida_calibrador+(variacao_de_distancia*-1);
 
-          iniciar_medicao();
 
-          distancia_inicial_parede = distancia_traseira;
-
+          delay(1000);
 
           indo_para_frente = true;
-          delay(2000);
-
-          contador_de_calibragem++;
-          iniciar_medicao();
-
+          contador_calibrador++;
           distancia_inicial_parede = distancia_traseira;
-
-
+          iniciar_medicao();
         }
-      
-    }
-
-
+      }
     }
     
   } else if(modo == "medindo") {
@@ -200,7 +186,7 @@ void loop(){
 
         ligar_motores(-1, 1);
           
-        delay(800);
+        delay(1000);
         ligar_motores(0,0);
 
         primeira_vez_apos_correcao = true;
@@ -247,9 +233,9 @@ void loop(){
             if(variacao_de_distancia_da_parede > 0){
 
               if(indo_para_frente){
-                ligar_motores(0, -1);
+                ligar_motores(1, -1);
               }else {
-                ligar_motores(0, 1);
+                ligar_motores(-1, 1);
               }
 
             }else {
@@ -336,21 +322,23 @@ void loop(){
         ligar_motores(0,0);
     }
 
+
   } else if(modo == "desativado"){
     escrever_lcd("Desativado", "");
   }
 
-
 }
 
-
 void reiniciar_robo(){
-
-  media_de_pulsos_por_cm = ler_eeprom();
 
   desligar_medicao();
   pulsos_esquerda = 0;
   pulsos_direita = 0;
+  distancia_total_percorrida_calibrador = 0;
+  contador_calibrador = 0;
+  
+
+  modo= String("desativado");
 
   primeira_vez_apos_correcao = false;
   distancia_inicial_parede  = 0;
@@ -425,7 +413,6 @@ void ligar_motores(int direita, int esquerda){
 
 
 void iniciar_medicao(){
-
 
   pulsos_direita = 0;
   pulsos_esquerda = 0;
