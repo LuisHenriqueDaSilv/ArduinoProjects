@@ -3,7 +3,6 @@
 ---------------------Bibliotecas---------------------
 */
 #include <Arduino.h>
-#include <Ultrasonic.h>
 #include <Wire.h> 
 #include <LiquidCrystal_I2C.h>
 #include <EEPROM.h>
@@ -47,9 +46,23 @@ int pulsos_para_correcao = 0;
 /*
 ---------------------Sensores De Distancia---------------------
 */
-Ultrasonic ultrassonico_frontal(8, 9); //Trig-Echo
-Ultrasonic ultrassonico_direito(A1, A0); //Trig-Echo
-Ultrasonic ultrassonico_traseiro(A3, A2); //Trig-Echo
+#define TRIG_FRONTAL 8
+#define ECHO_FRONTAL 9
+#define TRIG_TRASEIRO A3
+#define ECHO_TRASEIRO A2
+#define TRIG_DIREITO A1
+#define ECHO_DIREITO A0
+
+int medir_distancia(int echoPin, int trigPin){
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  long duration = pulseIn(echoPin, HIGH);
+  int distance = duration * 0.034 / 2;
+  return(distance);
+}
 
 
 /*
@@ -225,6 +238,16 @@ void setup(){
 
   Serial.begin(9600);
 
+  // ---Pinos dos Sensores Ultrassonicos---
+  pinMode(ECHO_DIREITO, INPUT);
+  pinMode(ECHO_TRASEIRO, INPUT);
+  pinMode(ECHO_FRONTAL, INPUT);
+
+  pinMode(TRIG_DIREITO,OUTPUT);
+  pinMode(TRIG_TRASEIRO,OUTPUT);
+  pinMode(TRIG_FRONTAL,OUTPUT);
+
+
   // ---Pinos de Controle Dos Motores---
   pinMode(4, OUTPUT); // Direita Horario
   pinMode(5, OUTPUT); // Direita Anti-Horario
@@ -270,9 +293,9 @@ void loop(){
       bool pode_andar = false;
 
       if(indo_para_frente){
-        pode_andar = ultrassonico_traseiro.Ranging(CM) < 50;
+        pode_andar = medir_distancia(ECHO_TRASEIRO, TRIG_TRASEIRO) < 50;
       } else {
-        pode_andar = ultrassonico_traseiro.Ranging(CM) > DISTANCIA_MINIMA_DA_PAREDE;
+        pode_andar = medir_distancia(ECHO_TRASEIRO, TRIG_TRASEIRO) > DISTANCIA_MINIMA_DA_PAREDE;
       }
 
       if(indo_para_frente){
@@ -292,13 +315,13 @@ void loop(){
       if(!pode_andar){
         desligar_medicao();
 
-        distancia_total_percorrida = distancia_total_percorrida + abs(ultrassonico_traseiro.Ranging(CM) - distancia_inicial_parede);
+        distancia_total_percorrida = distancia_total_percorrida + abs(medir_distancia(ECHO_TRASEIRO, TRIG_TRASEIRO) - distancia_inicial_parede);
         pulsos_totais = pulsos_totais + pulsos_encoder;
         contador_calibrador++;
 
         delay(1000);
         indo_para_frente = !indo_para_frente;
-        distancia_inicial_parede = ultrassonico_traseiro.Ranging(CM);
+        distancia_inicial_parede = medir_distancia(ECHO_TRASEIRO, TRIG_TRASEIRO);
         ligar_medicao();
       }
 
@@ -320,7 +343,7 @@ void loop(){
 
       case 0: {
 
-        if(ultrassonico_frontal.Ranging(CM) > DISTANCIA_MINIMA_DA_PAREDE){ // Andar até encontrar a parede
+        if(medir_distancia(ECHO_FRONTAL, TRIG_FRONTAL) > DISTANCIA_MINIMA_DA_PAREDE){ // Andar até encontrar a parede
           ligar_motores(-1,-1);
         } else {
           frear_motores(-1);
@@ -334,7 +357,7 @@ void loop(){
 
       case 1: { // Voltar até ficar com 40cm da parede
 
-        if(ultrassonico_frontal.Ranging(CM) < 40){
+        if(medir_distancia(ECHO_FRONTAL, TRIG_FRONTAL) < 40){
           ligar_motores(1, 1);
         } else {
           frear_motores(1);
@@ -356,7 +379,7 @@ void loop(){
           ligar_motores(0,0);
           desligar_medicao();
 
-          distancia_direita_inicio = ultrassonico_direito.Ranging(CM);
+          distancia_direita_inicio = medir_distancia(ECHO_DIREITO, TRIG_DIREITO);
           passo++;
           delay(1000);
         }
@@ -374,7 +397,7 @@ void loop(){
 
           if(pulsos_encoder >= pulsos_para_correcao){
             virando = false;
-            distancia_direita_inicio = ultrassonico_direito.Ranging(CM);
+            distancia_direita_inicio = medir_distancia(ECHO_DIREITO, TRIG_DIREITO);
             desligar_medicao();
             ligar_motores(0,0);
             inicio_da_reta = millis();
@@ -386,13 +409,13 @@ void loop(){
           bool pode_andar;
 
           if(indo_para_frente){
-            pode_andar = ultrassonico_frontal.Ranging(CM) >= DISTANCIA_MINIMA_DA_PAREDE;
+            pode_andar = medir_distancia(ECHO_FRONTAL, TRIG_FRONTAL) >= DISTANCIA_MINIMA_DA_PAREDE;
           } else {
-            pode_andar = ultrassonico_traseiro.Ranging(CM) >= DISTANCIA_MINIMA_DA_PAREDE;
+            pode_andar = medir_distancia(ECHO_TRASEIRO, TRIG_TRASEIRO) >= DISTANCIA_MINIMA_DA_PAREDE;
           }
 
           if(pode_andar){
-            int variacao_lateral = ultrassonico_direito.Ranging(CM) - distancia_direita_inicio;
+            int variacao_lateral = medir_distancia(ECHO_DIREITO, TRIG_DIREITO) - distancia_direita_inicio;
 
             if(abs(variacao_lateral) > 7 && abs(variacao_lateral) < 20){
 
@@ -451,7 +474,7 @@ void loop(){
                 passo++;
               } else {
                 indo_para_frente = !indo_para_frente;
-                distancia_direita_inicio = ultrassonico_direito.Ranging(CM);
+                distancia_direita_inicio = medir_distancia(ECHO_DIREITO, TRIG_DIREITO);
                 corrigiu = false;
               }
 
@@ -475,12 +498,12 @@ void loop(){
     switch(passo){
 
       case 0: {
-        if(ultrassonico_frontal.Ranging(CM) > DISTANCIA_MINIMA_DA_PAREDE){ // Andar até encontrar a parede
+        if(medir_distancia(ECHO_FRONTAL, TRIG_FRONTAL) > DISTANCIA_MINIMA_DA_PAREDE){ // Andar até encontrar a parede
           ligar_motores(-1,-1);
         } else {
           frear_motores(-1);
 
-          distancia_inicial_parede = ultrassonico_frontal.Ranging(CM);
+          distancia_inicial_parede = medir_distancia(ECHO_FRONTAL, TRIG_FRONTAL);
 
           delay(1000);
           passo++;
@@ -494,11 +517,11 @@ void loop(){
           ligar_medicao();
         }
 
-        if(ultrassonico_traseiro.Ranging(CM) > DISTANCIA_MINIMA_DA_PAREDE){
+        if(medir_distancia(ECHO_TRASEIRO, TRIG_TRASEIRO) > DISTANCIA_MINIMA_DA_PAREDE){
           ligar_motores(1,1);
         } else {
           frear_motores(1);
-          int tamanho = (pulsos_encoder*cms_por_pulso) + distancia_inicial_parede + ultrassonico_traseiro.Ranging(CM) + 27; 
+          int tamanho = (pulsos_encoder*cms_por_pulso) + distancia_inicial_parede + medir_distancia(ECHO_TRASEIRO, TRIG_TRASEIRO) + 27; 
           escrever_lcd(String(pulsos_encoder), String(tamanho) + String("CM"));
           delay(10000);
 
