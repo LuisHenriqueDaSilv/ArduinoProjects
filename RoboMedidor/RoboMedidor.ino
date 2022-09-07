@@ -12,23 +12,25 @@
 /*
 ---------------------Constantes Gerais---------------------
 */
-#define DISTANCIA_MINIMA_DA_PAREDE 15 // CM
-#define PULSOS_PARA_CURVA 18
+#define DISTANCIA_MINIMA_DA_PAREDE 10 // CM
+#define PULSOS_PARA_CURVA 17
+const int  PULSOS_PARA_CORRECAO = 1;
 
 
 /*
 ---------------------Variaveis Gerais---------------------
 */
 
-String modo = String("desativado");
+String modo = String("Em espera");
 String ultimo_modo_loop;
+long momento_do_ultimo_pulso_troca_de_modo = 0;
 
 // ---Calibrador---
 float distancia_total_percorrida = 0;
 float pulsos_totais = 0;
 int distancia_inicial_parede = 0;
 int contador_calibrador = 0;
-float cms_por_pulso = 0;
+int cms_por_pulso = 0;
 
 
 // ---Medicao---
@@ -38,10 +40,13 @@ int passo = 0;
 bool medindo = false;
 int distancia_direita_inicio = 0;
 int indo_para_frente = true;
-bool corrigiu = false;
 bool virando = false;
-long inicio_da_reta = 0;
-int pulsos_para_correcao = 0;
+
+int primeira_reta = 0;
+int segunda_reta = 0;
+int pulsos_inicio_de_correcao = 0;
+bool procurando_canto = true;
+int contador_de_correcoes = 0;
 
 
 /*
@@ -87,12 +92,6 @@ void escrever_lcd(String linha_1, String linha_2){
 */
 void ligar_motores(int esquerda, int direita){
 
-  if(esquerda == 0 && direita == 0){
-    analogWrite(10, 0);
-  } else {
-    analogWrite(10, 255);
-  }
-
   switch(esquerda){
 
     case -1:
@@ -130,7 +129,6 @@ void frear_motores(int direcao_atual_motores){
   ligar_motores(direcao_atual_motores*-1, direcao_atual_motores*-1);
   delay(100);
   ligar_motores(0,0);
-
 }
 
 
@@ -163,7 +161,7 @@ void desligar_medicao(){
 
 void contar_pulsos(){
 
-  if(millis() - momento_do_ultimo_pulso > 20){
+  if(millis() - momento_do_ultimo_pulso > 5){
     pulsos_encoder++; 
     momento_do_ultimo_pulso = millis();
   }
@@ -175,20 +173,19 @@ void contar_pulsos(){
 */
 void mudar_modo(){
 
+  if(millis() - momento_do_ultimo_pulso_troca_de_modo > 2000){
 
-  if(millis() - momento_do_ultimo_pulso > 5){
-
-    if(modo == "medindo"){
-      modo = String("calibrando");
-    }else if(modo == "calibrando") {
-      modo = String("linhareta");
-    } else if(modo == "linhareta"){
-      modo = String("desativado");
-    } else if(modo == "desativado"){
-      modo = String("medindo");
+    if(modo == "Autonomo"){
+      modo = String("Linha Reta");
+    }else if(modo == "Linha Reta") {
+      modo = String("Calibrando");
+    } else if(modo == "Calibrando"){
+      modo = String("Em espera");
+    } else if(modo == "Em espera"){
+      modo = String("Autonomo");
     }
 
-    momento_do_ultimo_pulso = millis();
+    momento_do_ultimo_pulso_troca_de_modo = millis();
   }
 
 
@@ -201,21 +198,21 @@ void mudar_modo(){
 
 void reiniciar_robo(){
 
-  escrever_lcd("", "");
   desligar_medicao();
   medindo = false;
   passo = 0;
   pulsos_encoder = 0;
   distancia_direita_inicio = 0;
   indo_para_frente = true;
-  corrigiu = false;
   virando = false;
-  inicio_da_reta = 0;
-  pulsos_para_correcao = 0;
+  contador_de_correcoes = 0;
   distancia_total_percorrida = 0;
   pulsos_totais = 0;
   distancia_inicial_parede = 0;
   contador_calibrador = 0;
+  momento_do_ultimo_pulso_troca_de_modo = 0;
+  pulsos_inicio_de_correcao = 0;
+  procurando_canto = true;
 
   cms_por_pulso = ler_eeprom();
 
@@ -230,7 +227,6 @@ void setup(){
   pinMode(5, OUTPUT); // Direita Anti-Horario
   pinMode(6, OUTPUT); // Esquerda Horario
   pinMode(7, OUTPUT); // Esquerda Anti-Horario
-  pinMode(10, OUTPUT); // Pino Para Controle de Velocidade Dos Motores
 
   // ---Iniciando LCD---
   lcd.init();
@@ -251,70 +247,70 @@ void setup(){
 void loop(){
 
   if(modo != ultimo_modo_loop){
+    escrever_lcd(modo, "Carregando...");
     ultimo_modo_loop = modo;
     ligar_motores(0,0);
     reiniciar_robo();
-    delay(500);
+    delay(2000);
   }
 
-  if(modo == "desativado"){
+  escrever_lcd(modo, "");
 
-    escrever_lcd("Desativado", "");
+  if(modo == "Em espera"){
 
-  } else if(modo == "calibrando") {
+  } else if(modo == "Calibrando") {
 
-    escrever_lcd("Calibrando", "");
-
-    if(contador_calibrador < 30){
+    if(contador_calibrador < 20){
 
       bool pode_andar = false;
 
       if(indo_para_frente){
-        pode_andar = ultrassonico_traseiro.Ranging(CM) < 50;
+        pode_andar = ultrassonico_frontal.Ranging(CM) <= 40;
       } else {
-        pode_andar = ultrassonico_traseiro.Ranging(CM) > DISTANCIA_MINIMA_DA_PAREDE;
+        pode_andar = ultrassonico_frontal.Ranging(CM) >= DISTANCIA_MINIMA_DA_PAREDE;
       }
 
-      if(indo_para_frente){
-        if(pode_andar){
+      if(pode_andar){
+        if(indo_para_frente){
+          ligar_motores(1,1);
+        } else {
           ligar_motores(-1,-1);
+        }
+      } else {
+
+        if(indo_para_frente){
+          frear_motores(1);
         } else {
           frear_motores(-1);
         }
-      } else {
-        if(pode_andar){
-          ligar_motores(1,1);
-        } else {
-          frear_motores(1);
-        }
-      }
 
-      if(!pode_andar){
         desligar_medicao();
 
-        distancia_total_percorrida = distancia_total_percorrida + abs(ultrassonico_traseiro.Ranging(CM) - distancia_inicial_parede);
+        distancia_total_percorrida = distancia_total_percorrida + abs(ultrassonico_frontal.Ranging(CM) - distancia_inicial_parede);
         pulsos_totais = pulsos_totais + pulsos_encoder;
         contador_calibrador++;
 
         delay(1000);
         indo_para_frente = !indo_para_frente;
-        distancia_inicial_parede = ultrassonico_traseiro.Ranging(CM);
+        distancia_inicial_parede = ultrassonico_frontal.Ranging(CM);
         ligar_medicao();
       }
 
     } else {
       ligar_motores(0,0);
-      float media_de_cms_por_pulso = distancia_total_percorrida/pulsos_totais;
-      escrever_lcd(String(media_de_cms_por_pulso), "");
+      int media_de_cms_por_pulso = distancia_total_percorrida/pulsos_totais;
+      if(media_de_cms_por_pulso == 0){
+        media_de_cms_por_pulso = 1;
+      }
+      escrever_lcd("Media de:", String(media_de_cms_por_pulso) + "cms Por Pulso");
       gravar_eeprom(media_de_cms_por_pulso);
 
       delay(10000);
-      modo = String("desativado");
+      modo = String("Em espera");
+      reiniciar_robo();
     }
 
-  } else if(modo == "medindo"){
-
-    escrever_lcd("Medindo", "");
+  } else if(modo == "Autonomo"){
 
     switch(passo){
 
@@ -366,98 +362,104 @@ void loop(){
 
       case 3: { //Seguir a parede ao lado
 
-        if(inicio_da_reta == 0){ 
-          inicio_da_reta = millis();
+        if(!medindo){
+          ligar_medicao();
         }
 
         if(virando){
-
-          if(pulsos_encoder >= pulsos_para_correcao){
-            virando = false;
-            distancia_direita_inicio = ultrassonico_direito.Ranging(CM);
-            desligar_medicao();
+          if(pulsos_encoder - pulsos_inicio_de_correcao > PULSOS_PARA_CORRECAO){
             ligar_motores(0,0);
-            inicio_da_reta = millis();
+            delay(500);
+
+            virando = false;
+            contador_de_correcoes++;
+            distancia_direita_inicio = ultrassonico_direito.Ranging(CM);
             delay(1000);
           }
           return;
+          break;
+        }
+        
+        bool pode_andar;
+
+        if(indo_para_frente){
+          pode_andar = ultrassonico_frontal.Ranging(CM) > DISTANCIA_MINIMA_DA_PAREDE;
+        } else {
+          pode_andar = ultrassonico_traseiro.Ranging(CM) > DISTANCIA_MINIMA_DA_PAREDE;
+        }
+
+        if(pode_andar){
+          int variacao_lateral = ultrassonico_direito.Ranging(CM) - distancia_direita_inicio;
+
+          if(abs(variacao_lateral) > 3 && abs(variacao_lateral) < 20){ 
+
+            if(indo_para_frente){
+              frear_motores(-1);
+            } else {
+              frear_motores(1);
+            }
+            delay(1000);
+
+            pulsos_inicio_de_correcao = pulsos_encoder;
+            virando = true;
+
+            if((indo_para_frente && variacao_lateral > 0) || (!indo_para_frente && variacao_lateral < 0)) {
+              ligar_motores(1, -1);
+            } else {
+              ligar_motores(-1, 1);
+            }
+
+          } else {
+
+            if(indo_para_frente){
+              ligar_motores(-1,-1);
+            } else {
+              ligar_motores(1,1);
+            }
+
+          }
+
         } else {
 
-          bool pode_andar;
-
           if(indo_para_frente){
-            pode_andar = ultrassonico_frontal.Ranging(CM) >= DISTANCIA_MINIMA_DA_PAREDE;
+            frear_motores(-1);
           } else {
-            pode_andar = ultrassonico_traseiro.Ranging(CM) >= DISTANCIA_MINIMA_DA_PAREDE;
+            frear_motores(1);
           }
 
-          if(pode_andar){
-            int variacao_lateral = ultrassonico_direito.Ranging(CM) - distancia_direita_inicio;
 
-            if(abs(variacao_lateral) > 7 && abs(variacao_lateral) < 20){
+          if(procurando_canto){
+            indo_para_frente = !indo_para_frente;
+            distancia_direita_inicio = ultrassonico_direito.Ranging(CM);
+            procurando_canto = false;
 
+            desligar_medicao();
+          } else {
 
-              if(indo_para_frente){
-                frear_motores(-1);
-              } else {
-                frear_motores(1);
-              }
-              delay(1000);
+            int tamanho = (pulsos_encoder*cms_por_pulso) + (2* DISTANCIA_MINIMA_DA_PAREDE) + 28 + contador_de_correcoes * 2; 
 
-              virando = true;
-              corrigiu = true;
-              ligar_medicao();
+            if(primeira_reta == 0){
+              primeira_reta = tamanho;
+              escrever_lcd(String(primeira_reta) + "cm", "N/M");
+              delay(5000);
+              desligar_medicao();
 
-              long momento_atual = millis();
-
-              if(momento_atual - inicio_da_reta < 1000){
-                pulsos_para_correcao = 6;
-              } else if(momento_atual - inicio_da_reta < 2000){
-                pulsos_para_correcao = 5;
-              } else if(momento_atual - inicio_da_reta < 3000){
-                pulsos_para_correcao = 4;
-              } else if(momento_atual - inicio_da_reta < 4000){
-                pulsos_para_correcao = 3;
-              } else {
-                pulsos_para_correcao = 2;
-              }
-              
-              if((indo_para_frente && variacao_lateral > 0) || (!indo_para_frente && variacao_lateral < 0)) {
-                ligar_motores(1, -1);
-              } else {
-                ligar_motores(-1, 1);
-              }
-
+              reiniciar_robo();
+              passo = 0;
             } else {
+              
+              segunda_reta = tamanho;
+              escrever_lcd(String(primeira_reta) + "cm", String(segunda_reta) + "cm");
+              delay(10000);
 
-              if(indo_para_frente){
-                ligar_motores(-1,-1);
-              } else {
-                ligar_motores(1,1);
-              }
-
+              reiniciar_robo();
+              modo = String("Em espera");
+              primeira_reta = 0;
+              segunda_reta = 0;
             }
-          } else {
-
-              if(indo_para_frente){
-                frear_motores(-1);
-              } else {
-                frear_motores(1);
-              }
-
-              delay(1000);
-
-              if(!corrigiu){
-                passo++;
-              } else {
-                indo_para_frente = !indo_para_frente;
-                distancia_direita_inicio = ultrassonico_direito.Ranging(CM);
-                corrigiu = false;
-              }
-
 
           }
-
+          contador_de_correcoes = 0;
         }
 
         break;
@@ -468,19 +470,15 @@ void loop(){
         ligar_motores(0,0);
       }
     }
-  } else if(modo == "linhareta"){
-
-    escrever_lcd("Linha reta", "");
+  } else if(modo == "Linha Reta"){
 
     switch(passo){
 
       case 0: {
-        if(ultrassonico_frontal.Ranging(CM) > DISTANCIA_MINIMA_DA_PAREDE){ // Andar até encontrar a parede
+        if(ultrassonico_frontal.Ranging(CM) > 10){ // Andar até encontrar a parede
           ligar_motores(-1,-1);
         } else {
           frear_motores(-1);
-
-          distancia_inicial_parede = ultrassonico_frontal.Ranging(CM);
 
           delay(1000);
           passo++;
@@ -494,16 +492,16 @@ void loop(){
           ligar_medicao();
         }
 
-        if(ultrassonico_traseiro.Ranging(CM) > DISTANCIA_MINIMA_DA_PAREDE){
+        if(ultrassonico_traseiro.Ranging(CM) > 10){
           ligar_motores(1,1);
         } else {
           frear_motores(1);
-          int tamanho = (pulsos_encoder*cms_por_pulso) + distancia_inicial_parede + ultrassonico_traseiro.Ranging(CM) + 27; 
-          escrever_lcd(String(pulsos_encoder), String(tamanho) + String("CM"));
+          int tamanho = (pulsos_encoder*cms_por_pulso) + 47; 
+          escrever_lcd("Re linha reta:", String(tamanho) + String("CM"));
           delay(10000);
 
           reiniciar_robo();
-          modo = String("desativado");
+          modo = String("Em espera");
         }
         break;
       }
@@ -511,6 +509,5 @@ void loop(){
     }
 
   }
-
 
 }
