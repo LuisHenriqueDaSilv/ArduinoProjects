@@ -235,7 +235,7 @@ void setup(){
   lcd.backlight();
 
   // ---Mensagem de inicio---
-  escrever_lcd("Iniciando robo", "Aguarde!");
+  escrever_lcd("Iniciando Robo", "Aguarde!");
   delay(2000);
 
   // ---Sensores---
@@ -304,7 +304,7 @@ void loop(){
         if(media_de_cms_por_pulso == 0){
           media_de_cms_por_pulso = 1;
         }
-        escrever_lcd("Media de:", String(media_de_cms_por_pulso) + "cms Por Pulso");
+        escrever_lcd("Media de:", String(media_de_cms_por_pulso) + "cms/pulso");
         gravar_eeprom(media_de_cms_por_pulso);
 
         delay(10000);
@@ -499,7 +499,7 @@ void loop(){
           } else {
             frear_motores(1);
             int tamanho = (pulsos_encoder*cms_por_pulso) + 47; 
-            escrever_lcd("Re linha reta:", String(tamanho) + String("CM"));
+            escrever_lcd("Linha reta:", String(tamanho) + String("cm"));
             delay(10000);
 
             reiniciar_robo();
