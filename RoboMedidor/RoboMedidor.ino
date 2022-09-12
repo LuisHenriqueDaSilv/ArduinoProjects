@@ -354,15 +354,18 @@ void loop(){
             ligar_motores(0,0);
             desligar_medicao();
 
-            distancia_direita_inicio = ultrassonico_direito.Ranging(CM);
             passo++;
             delay(1000);
           }
-
+          distancia_direita_inicio = 0;
           break;
         }
-
+    
         case 3: { //Seguir a parede ao lado
+
+          if(distancia_direita_inicio == 0){
+            distancia_direita_inicio = ultrassonico_direito.Ranging(CM);
+          }
 
           if(!medindo){
             ligar_medicao();
@@ -393,7 +396,7 @@ void loop(){
           if(pode_andar){
             int variacao_lateral = ultrassonico_direito.Ranging(CM) - distancia_direita_inicio;
 
-            if(abs(variacao_lateral) > 3 && abs(variacao_lateral) < 20){ 
+            if(abs(variacao_lateral) > 5 && abs(variacao_lateral) < 20){ 
 
               if(indo_para_frente){
                 frear_motores(-1);
