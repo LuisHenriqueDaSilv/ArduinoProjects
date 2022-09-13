@@ -318,7 +318,7 @@ void loop(){
 
         case 0: {
 
-          if(ultrassonico_frontal.Ranging(CM) > DISTANCIA_MINIMA_DA_PAREDE){ // Andar até encontrar a parede
+          if(ultrassonico_frontal.Ranging(CM) > DISTANCIA_MINIMA_DA_PAREDE){
             ligar_motores(-1,-1);
           } else {
             frear_motores(-1);
@@ -330,7 +330,7 @@ void loop(){
           break;
         }
 
-        case 1: { // Voltar até ficar com 40cm da parede
+        case 1: {
 
           if(ultrassonico_frontal.Ranging(CM) < 40){
             ligar_motores(1, 1);
@@ -342,7 +342,7 @@ void loop(){
           break;
         }
 
-        case 2: { // Fazer curva
+        case 2: {
 
           if(!medindo){
             ligar_medicao();
@@ -361,7 +361,7 @@ void loop(){
           break;
         }
     
-        case 3: { //Seguir a parede ao lado
+        case 3: {
 
           if(distancia_direita_inicio == 0){
             distancia_direita_inicio = ultrassonico_direito.Ranging(CM);
@@ -480,7 +480,7 @@ void loop(){
       switch(passo){
 
         case 0: {
-          if(ultrassonico_frontal.Ranging(CM) > 10){ // Andar até encontrar a parede
+          if(ultrassonico_frontal.Ranging(CM) > 10){
             ligar_motores(-1,-1);
           } else {
             frear_motores(-1);
