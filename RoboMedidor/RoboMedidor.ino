@@ -187,6 +187,8 @@ void mudar_modo(){
     }
 
     momento_do_ultimo_pulso_troca_de_modo = millis();
+    primeira_reta = 0;
+    segunda_reta = 0;
   }
 
 
