@@ -429,7 +429,40 @@ void loop(){
           if(pode_andar){
             int variacao_lateral = medir_distancia_direita() - distancia_direita_inicio;
 
-            if(abs(variacao_lateral) > 2 && abs(variacao_lateral) < 20){ 
+            if(medir_distancia_direita() < 4){
+
+              if(indo_para_frente){
+                frear_motores(-1);
+              } else {
+                frear_motores(1);
+              }
+              delay(1000);
+
+              pulsos_inicio_de_correcao = pulsos_encoder;
+              virando = true;
+
+              if(indo_para_frente) {
+                ligar_motores(-1, 1);
+              } else {
+                ligar_motores(1, -1);
+              }
+            } else if (medir_distancia_direita() > 20){
+                            if(indo_para_frente){
+                frear_motores(-1);
+              } else {
+                frear_motores(1);
+              }
+              delay(1000);
+
+              pulsos_inicio_de_correcao = pulsos_encoder;
+              virando = true;
+
+              if(indo_para_frente) {
+                ligar_motores(1, -1);
+              } else {
+                ligar_motores(-1, 1);
+              }
+            } else if(abs(variacao_lateral) > 2 && abs(variacao_lateral) < 20){ 
 
               if(indo_para_frente){
                 frear_motores(-1);
