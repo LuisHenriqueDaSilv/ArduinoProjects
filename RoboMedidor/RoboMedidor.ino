@@ -20,7 +20,7 @@
 /*
 ---------------------Constantes Gerais---------------------
 */
-#define DISTANCIA_MINIMA_DA_PAREDE 4 // INC
+#define DISTANCIA_MINIMA_DA_PAREDE 10 // CM
 #define PULSOS_PARA_CURVA 10
 const int  PULSOS_PARA_CORRECAO = 1;
 
@@ -39,7 +39,7 @@ float distancia_total_percorrida = 0;
 float pulsos_totais = 0;
 int distancia_inicial_parede = 0;
 int contador_calibrador = 0;
-int cms_por_pulso = 0;
+int cms_por_pulso = 0.0;
 
 
 // ---Medicao---
@@ -67,8 +67,8 @@ Ultrasonic ultrassonico_direito_2(11, 10); //Trig-Echo
 Ultrasonic ultrassonico_traseiro(A3, A2); //Trig-Echo
 
 int medir_distancia_direita(){
-  int sensor_1 = ultrassonico_direito.Ranging(INC);
-  int sensor_2 = ultrassonico_direito_2.Ranging(INC);
+  int sensor_1 = ultrassonico_direito.Ranging(CM);
+  int sensor_2 = ultrassonico_direito_2.Ranging(CM);
 
   return ((sensor_2 + sensor_1)/2);
 }
@@ -287,14 +287,14 @@ void loop(){
 
     if(modo == "Calibrando") {
 
-      if(contador_calibrador < 10){
+      if(contador_calibrador < 15){
 
         bool pode_andar = false;
 
         if(indo_para_frente){
-          pode_andar = ultrassonico_frontal.Ranging(INC) <= 15;
+          pode_andar = ultrassonico_frontal.Ranging(CM) <= 40;
         } else {
-          pode_andar = ultrassonico_frontal.Ranging(INC) >= DISTANCIA_MINIMA_DA_PAREDE;
+          pode_andar = ultrassonico_frontal.Ranging(CM) >= DISTANCIA_MINIMA_DA_PAREDE;
         }
 
         if(pode_andar){
@@ -311,10 +311,9 @@ void loop(){
             frear_motores(-1);
           }
 
-
           desligar_medicao();
 
-          int dif = ultrassonico_frontal.Ranging(INC) - distancia_inicial_parede;
+          int dif = ultrassonico_frontal.Ranging(CM) - distancia_inicial_parede;
 
           if(dif < 0 ){
             dif = dif *-1;
@@ -326,7 +325,7 @@ void loop(){
 
           delay(1000);
           indo_para_frente = !indo_para_frente;
-          distancia_inicial_parede = ultrassonico_frontal.Ranging(INC);
+          distancia_inicial_parede = ultrassonico_frontal.Ranging(CM);
           ligar_medicao();
         }
 
@@ -351,7 +350,7 @@ void loop(){
 
         case 0: {
 
-          if(ultrassonico_frontal.Ranging(INC) > DISTANCIA_MINIMA_DA_PAREDE){
+          if(ultrassonico_frontal.Ranging(CM) > DISTANCIA_MINIMA_DA_PAREDE){
             ligar_motores(-1,-1);
           } else {
             frear_motores(-1);
@@ -365,7 +364,7 @@ void loop(){
 
         case 1: {
 
-          if(ultrassonico_frontal.Ranging(INC) < 11){
+          if(ultrassonico_frontal.Ranging(CM) < 30){
             ligar_motores(1, 1);
           } else {
             frear_motores(1);
@@ -421,15 +420,15 @@ void loop(){
           bool pode_andar;
 
           if(indo_para_frente){
-            pode_andar = ultrassonico_frontal.Ranging(INC) > DISTANCIA_MINIMA_DA_PAREDE;
+            pode_andar = ultrassonico_frontal.Ranging(CM) > DISTANCIA_MINIMA_DA_PAREDE;
           } else {
-            pode_andar = ultrassonico_traseiro.Ranging(INC) > DISTANCIA_MINIMA_DA_PAREDE;
+            pode_andar = ultrassonico_traseiro.Ranging(CM) > DISTANCIA_MINIMA_DA_PAREDE;
           }
 
           if(pode_andar){
             int variacao_lateral = medir_distancia_direita() - distancia_direita_inicio;
 
-            if(medir_distancia_direita() < 4){
+            if(medir_distancia_direita() < 10){
 
               if(indo_para_frente){
                 frear_motores(-1);
@@ -446,8 +445,8 @@ void loop(){
               } else {
                 ligar_motores(1, -1);
               }
-            } else if (medir_distancia_direita() > 20){
-                            if(indo_para_frente){
+            } else if (medir_distancia_direita() > 50){
+              if(indo_para_frente){
                 frear_motores(-1);
               } else {
                 frear_motores(1);
@@ -462,7 +461,7 @@ void loop(){
               } else {
                 ligar_motores(-1, 1);
               }
-            } else if(abs(variacao_lateral) > 2 && abs(variacao_lateral) < 20){ 
+            } else if(abs(variacao_lateral) > 3 && abs(variacao_lateral) < 50){ 
 
               if(indo_para_frente){
                 frear_motores(-1);
@@ -507,7 +506,7 @@ void loop(){
               desligar_medicao();
             } else {
 
-              int tamanho = (pulsos_encoder*cms_por_pulso) + (2* DISTANCIA_MINIMA_DA_PAREDE) + 11 - contador_de_correcoes * PULSOS_PARA_CORRECAO; 
+              int tamanho = (pulsos_encoder*cms_por_pulso) + (2* DISTANCIA_MINIMA_DA_PAREDE) + 28 - contador_de_correcoes * PULSOS_PARA_CORRECAO; 
 
               if(primeira_reta == 0){
                 primeira_reta = tamanho;
@@ -546,7 +545,7 @@ void loop(){
       switch(passo){
 
         case 0: {
-          if(ultrassonico_frontal.Ranging(INC) > DISTANCIA_MINIMA_DA_PAREDE){
+          if(ultrassonico_frontal.Ranging(CM) > DISTANCIA_MINIMA_DA_PAREDE){
             ligar_motores(-1,-1);
           } else {
             frear_motores(-1);
@@ -563,11 +562,11 @@ void loop(){
             ligar_medicao();
           }
 
-          if(ultrassonico_traseiro.Ranging(INC) > DISTANCIA_MINIMA_DA_PAREDE){
+          if(ultrassonico_traseiro.Ranging(CM) > DISTANCIA_MINIMA_DA_PAREDE){
             ligar_motores(1,1);
           } else {
             frear_motores(1);
-            int tamanho = (pulsos_encoder*cms_por_pulso) + 47; 
+            int tamanho = (pulsos_encoder*cms_por_pulso) + 27 + 2*DISTANCIA_MINIMA_DA_PAREDE; 
             escrever_lcd("Linha reta:", String(tamanho) + String("cm"));
             delay(10000);
 
