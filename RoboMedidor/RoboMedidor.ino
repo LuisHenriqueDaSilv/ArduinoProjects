@@ -232,7 +232,7 @@ void reiniciar_variaveis(){
   numero_de_medidas = 0;
   soma_das_medicoes = 0;
 
-  cms_por_pulso = 4;
+  cms_por_pulso = 3.4;
 
 }
 
