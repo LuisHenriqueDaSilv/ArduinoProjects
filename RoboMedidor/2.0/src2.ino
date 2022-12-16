@@ -35,12 +35,13 @@ Portas LCD:
 ------Constantes globais------
 */
 #define DISTANCIA_MINIMA_PAREDE 15
-#define CMS_POR_PULSO 0.44
+#define CMS_POR_PULSO 0.50
 
 
 /*
-------Função para controle dos motores------
+------Funções para controle dos motores------
 */
+
 
 void 
 controlarMotores(int direcao, bool girando=false){
@@ -188,9 +189,9 @@ int pulsosTotaisDuranteMedicao;
 bool indoParaFrente = true;
 bool corrigindoPercurso = false;
 int pulsosIniciaisDaCorrecao = 0;
+long momentoDeUltimaCorrecao = 0;
 
 
-int segundaMedicao;
 int primeiraMedicao;
 
 
@@ -210,12 +211,11 @@ reiniciarEstado(){
 	distanciaInicialDaParedeDireita = 0;
 	contadorDeRepeticoes = 0;
 	pulsosTotaisDuranteMedicao = 0;
-	primeiraMedicao = 0;
-	segundaMedicao = 0;
 	indoParaFrente = 1;
 	pulsosIniciaisDaCorrecao = 0;
 	corrigindoPercurso = false;
 	contadorDeCorrecoes = 0;
+	momentoDeUltimaCorrecao = 0;
 
 	// 
 	controlarMotores(0);
@@ -329,7 +329,7 @@ loop(){
 			case 2: { // Cria uma distancia segura para realizar o giro;
 				escreverLCD(String("afastando"), String("para girar"));
 
-				if(ultrassonicoFrontal.Ranging(CM) < 2* DISTANCIA_MINIMA_PAREDE){
+				if(ultrassonicoFrontal.Ranging(CM) < 20){
 					controlarMotores(1);
 				}else {
 					frear(1);
@@ -362,6 +362,10 @@ loop(){
 
 			case 4: {
 
+				if(distanciaInicialDaParedeDireita == 0){
+					distanciaInicialDaParedeDireita = ultrassonicoDireito.Ranging(CM);
+				}
+
 				if(corrigindoPercurso){
 					escreverLCD(String("realizando"), String("correcao"));
 
@@ -371,20 +375,18 @@ loop(){
 						contadorDeCorrecoes++;
 						delay(500);
 
-						distanciaInicialDaParedeDireita = ultrassonicoDireito.Ranging(CM);
+						distanciaInicialDaParedeDireita = 0;
+
+						momentoDeUltimaCorrecao = millis();
 
 						return;
-					}
+					} else return;
 				} else if(contadorDeRepeticoes == 0){
 					escreverLCD(String("buscando inicio"), String("para medicao"));
-				}else {
+				} else {
 					escreverLCD(
 						"medicao "+(String)contadorDeRepeticoes+"/5"
 					);
-				}
-
-				if(distanciaInicialDaParedeDireita == 0){
-					distanciaInicialDaParedeDireita = ultrassonicoDireito.Ranging(CM);
 				}
 
 				bool podeAndar = indoParaFrente? 
@@ -396,9 +398,9 @@ loop(){
 
 					int variacaoLateral = ultrassonicoDireito.Ranging(CM) - distanciaInicialDaParedeDireita;
 
-					if(abs(variacaoLateral) > 3 && abs(variacaoLateral) < 50){
+					if(abs(variacaoLateral) > 3 && abs(variacaoLateral) < 50 && millis() - momentoDeUltimaCorrecao > 1500){
 
-						frear(indoParaFrente? 1:-1);
+						frear(indoParaFrente? -1:1);
 						corrigindoPercurso = true;
 						delay(500);
 						pulsosIniciaisDaCorrecao = pulsos;
@@ -426,10 +428,22 @@ loop(){
 						contadorDeRepeticoes++;
 					} else if(contadorDeRepeticoes == 5) {
 
-						/*Fazer aqui sistema para mostrar o resultado e passar para a próxima linha*/
-						escreverLCD(String(pulsosTotaisDuranteMedicao), "final");
-						delay(2000);
-						etapa++;
+						pulsosTotaisDuranteMedicao = pulsosTotaisDuranteMedicao+pulsos;
+
+						if(primeiraMedicao == 0){
+							primeiraMedicao = (pulsosTotaisDuranteMedicao- contadorDeCorrecoes)/contadorDeRepeticoes * CMS_POR_PULSO +(2*DISTANCIA_MINIMA_PAREDE) +26;
+							escreverLCD("Aguarde", String(primeiraMedicao) +" cms");
+							delay(2000);
+							reiniciarEstado();
+
+						} else {
+							int resultado = (pulsosTotaisDuranteMedicao- contadorDeCorrecoes)/contadorDeRepeticoes * CMS_POR_PULSO +(2*DISTANCIA_MINIMA_PAREDE) +26;
+							escreverLCD(String(primeiraMedicao) +" cms", String(resultado)+" cms");
+							delay(5000);
+							reiniciarEstado();
+							funcao = "desativado";
+						}
+
 
 					} else {
 						pulsosTotaisDuranteMedicao = pulsosTotaisDuranteMedicao+pulsos;
