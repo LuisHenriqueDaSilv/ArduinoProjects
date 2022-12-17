@@ -35,7 +35,7 @@ Portas LCD:
 ------Constantes globais------
 */
 #define DISTANCIA_MINIMA_PAREDE 15
-#define CMS_POR_PULSO 0.50
+#define CMS_POR_PULSO 0.48
 
 
 /*
@@ -442,6 +442,7 @@ loop(){
 							delay(5000);
 							reiniciarEstado();
 							funcao = "desativado";
+							primeiraMedicao = 0;
 						}
 
 
