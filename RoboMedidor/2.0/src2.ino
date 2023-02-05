@@ -34,8 +34,8 @@ Portas LCD:
 /*
 ------Constantes globais------
 */
-#define DISTANCIA_MINIMA_PAREDE 15
-#define CMS_POR_PULSO 0.48
+#define DISTANCIA_MINIMA_PAREDE 15 // Limite minino em CM's da parede
+#define CMS_POR_PULSO 0.48 //TODO: Explicar
 
 
 /*
