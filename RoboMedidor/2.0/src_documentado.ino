@@ -35,7 +35,7 @@ Portas LCD:
 ------Constantes globais------
 */
 #define DISTANCIA_MINIMA_PAREDE 15 // Distancia minima (em CM's) da parede
-#define CMS_POR_PULSO 0.48 // Cm's equivalente a um pulso do sensor ENCODER ligado à roda (1 pulsos do sensor encoder -> 0.48CM's)
+#define CMS_POR_PULSO 0.48 // Cm's equivalente a um pulso do sensor ENCODER ligado à roda (1 pulsos do sensor encoder -> 0.48CM's).
 
 
 /*
@@ -255,7 +255,7 @@ contarPulsos(){
 }
 
 void
-ligarMedicaoDeRoda(){
+ligarContagemDePulsosSensorEncoder(){
 	/*
 		Função para ativar a contagem de pulsos do sensor encoder
 
@@ -269,7 +269,7 @@ ligarMedicaoDeRoda(){
 }
 
 void
-desligarMedicaoDeRoda(){
+desligarContagemDePulsosSensorEncoder(){
 
 	/*
 		Função para desativar a contagem de pulsos do sensor encoder
@@ -345,7 +345,7 @@ reiniciarEstado(){
 	momentoDaUltimaCorrecao = 0;
 
 	controlarMotores(0);
-	desligarMedicaoDeRoda();
+	desligarContagemDePulsosSensorEncoder();
 }
 
 
@@ -376,7 +376,7 @@ loop(){
 	
 	if(ultimaFuncaoLoop != funcao){ 
 		/* 
-			Se a função atual for diferente da função da ultima chamada do loop, 
+			Se a função atual for diferente da função na ultima chamada do loop, 
 			as variaveis são reiniciadas e a nova função é escrita no painel.
 		*/
 		reiniciarEstado();
@@ -384,43 +384,85 @@ loop(){
 		escreverLCD(funcao);
 	}
 
-	if(millis() - inicioDelayDeTrocaDeFuncao < 3000){return;};
+	if(millis() - inicioDelayDeTrocaDeFuncao < 3000){return;}; /* Delay de 3 segundos 
+		entre a ultima troca de função e o inicio da medição para que o usuário tenha 
+		tempo de ler a função selecionada. 
+	*/ 
 
+	//Estrutura de controle das funções:
 	if(funcao == "medicao livre"){
 
-		switch (etapa){
-			case 1: { // Anda até encontrar uma barreira
-				escreverLCD(String("Buscando"), String("barreira"));
+		/*
+			No modo "medicao livre" o carro deve andar para frente até encontrar 
+			o primeiro obstáculo. Em seguida, começara a andar no sentido contrário
+			contando os pulsos do sensor encoder, medindo assim, a distancia entre
+			os dois obstáculos.
+		*/
 
-				bool poderAndar = ultrassonicoFrontal.Ranging(CM) > DISTANCIA_MINIMA_PAREDE;
+		switch (etapa){
+			case 1: { // Primeira etapa: Anda até encontrar um obstáculo
+				escreverLCD(String("Buscando"), String("barreira")); // Escreve no painel LCD a etapa atual
+
+				/* 
+					O carro só pode andar se a distancia atual do sensor frontal 
+					for maior que a distancia minima configurada pela constante 
+					"DISTANCIA_MINIMA_PAREDE". Caso contrário, a etapa de encontrar 
+					o primeiro obstáculo está completa e o carro pode passar para 
+					a próxima etapa  
+				*/
+				bool poderAndar = ultrassonicoFrontal.Ranging(CM) > DISTANCIA_MINIMA_PAREDE; 
 				if(poderAndar){
-					controlarMotores(-1);
+					// Liga os motores.
+					controlarMotores(-1); 
 				} else {
-					frear(-1);
+					// Freia e passa para a próxima etapa.
+					frear(-1); 
 					delay(500);
 					etapa++;
 				}
 
 				break;
 			}
-			case 2: { //Mede a distancia entre a primeira barreira até a próxima
-				escreverLCD(String("medindo reta"));
+			case 2: { // Etapa 2: Mede a distancia entre o primeiro obstáculo encontrado e o primeiro obstáculo do sentido contrário.
+				escreverLCD(String("medindo reta"));// Escreve no painel LCD a etapa atual
 
-				if(!contandoPulsosEncoder){
-					ligarMedicaoDeRoda();
+				if(!contandoPulsosEncoder){ // Ativa a contagem de pulsos do sensor encoder caso ainda não esteja ativa.
+					ligarContagemDePulsosSensorEncoder(); 
 				}
+
+				/* 
+					O carro só pode andar se a distancia atual do sensor traseiro 
+					for maior que a distancia minima configurada pela constante 
+					"DISTANCIA_MINIMA_PAREDE". Caso contrário, a etapa de medição 
+					foi completa. O resultado deve ser mostrado no painel LCD durante
+					5 segundos, o carro e suas variáveis são reiniciados ao estado 
+					inicial de aguardar um novo comando. 
+				*/
 
 				bool poderAndar = ultrassonicoTraseiro.Ranging(CM) > DISTANCIA_MINIMA_PAREDE;
 				if(poderAndar){
-					controlarMotores(1);
+					// Liga os motores
+					controlarMotores(1); 
 				} else {
-					desligarMedicaoDeRoda();
+					desligarContagemDePulsosSensorEncoder(); 
 					frear(1);
 
+					/*
+						Calcula a distancia em CM's usando a quantidade de pulsos 
+						do sensor Encoder:
+							tamanho em cms = pulsos * CMS_POR_PULSO + 2* DISTANCIA_MINIMA_PAREDE + 26
+								Pulsos: Quantidade de pulsos do sensor encoder.
+								2*DISTANCIA_MINIMA_PAREDE: Distancia do primeiro obstáculo + distancia do segundo obstáculo.
+								26: Distancia entre uma ponta e outra do carro. 
+					*/
 					int resultadoDeMedicao = pulsos * CMS_POR_PULSO + 2* DISTANCIA_MINIMA_PAREDE + 26;
-					escreverLCD("Resultado:", String(resultadoDeMedicao) + " CMs");
-					delay(5000);
-					etapa++;
+					escreverLCD("Resultado:", String(resultadoDeMedicao) + " CMs"); // Escreve no painel LCD o resultado da medição .
+					delay(5000); 
+					etapa++; /* Passa para a próxima etapa. Por não existir o 
+								caso 3 neste estrutura de switch/case, acaba 
+								caindo no default. Onde o carro é 
+								reiniciado.
+							*/
 				}
 
 				break;
@@ -428,24 +470,48 @@ loop(){
 			default: {
 
 				controlarMotores(0);
-				reiniciarEstado();
-				funcao = "desativado";
-
+				reiniciarEstado(); // Reinicia o valor de todas as variaveis para os valores padrões
+				funcao = "desativado"; // Desativa o carro.
 				break;
 			}
 		}
-} else if(funcao == "medicao completa"){
+		
+	} else if(funcao == "medicao completa"){
+
+		/*
+			No modo "medicao completa" o carro deve andar para frente até encontrar 
+			o primeiro obstáculo, girar ao redor de um ponto central, buscando 
+			ficar em paralelo à parede e voltar a procurar um obstáculo. Após isso,
+			o carro deve estar em paralelo a uma parede em seu lado direito, e 
+			de frente para outra. E enfim, começara a medir a primeira dimensão 
+			da sala de forma semelhante ao modo "medição livre", porem, 
+			repetindo a mesma linha diversas vezes para ter uma maior precisão. 
+			Após fazer a mesma linha algumas vezes, o resultado é armazenado na variável,
+			"primeiraMedicao" e o carro volta para a primeiro etapa de procurar 
+			um obstaculo e girar, porem, dessa vez ficando em paralelo à parede 
+			relativa à segunda dimensão da sala. 
+		*/
 
 
 		switch (etapa){
-			case 1: { // Anda até encontrar uma barreira;
-				escreverLCD(String("buscando"), String("barreira"));
+			case 1: { // Etapa 1: Anda até encontrar um obstáculo.
+
+				/* 
+					O carro só pode andar se a distancia atual do sensor frontal 
+					for maior que a distancia minima configurada pela constante 
+					"DISTANCIA_MINIMA_PAREDE". Caso contrário, a etapa de encontrar 
+					o primeiro obstáculo está completa e o carro pode passar para 
+					a próxima etapa  
+				*/
+				escreverLCD(String("buscando"), String("barreira")); // Escreve a etapa no painel LCD
 
 				bool poderAndar = ultrassonicoFrontal.Ranging(CM) > DISTANCIA_MINIMA_PAREDE;
 				if(poderAndar){
+					//Liga os motores
 					controlarMotores(-1);
 				} else {
-					frear(-1);
+					// Freia e passa para a próxima etapa.
+					frear(-1); 
 					delay(500);
 					etapa++;
 				}
@@ -453,12 +519,13 @@ loop(){
 				break;
 			}
 
-			case 2: { // Cria uma distancia segura para realizar o giro;
-				escreverLCD(String("afastando"), String("para girar"));
+			case 2: { // Etapa 2: criar uma distancia maior que a distancia minima da parede para que possa realizar o giro de forma segura.
+				escreverLCD(String("afastando"), String("para girar"));// Escreve a etapa no painel LCD
 
-				if(ultrassonicoFrontal.Ranging(CM) < 20){
+				if(ultrassonicoFrontal.Ranging(CM) < 20){ // Anda para trás até criar uma distancia de 20cm
 					controlarMotores(1);
 				}else {
+					// Freia e passa para a próxima etapa.
 					frear(1);
 					delay(500);
 					etapa++;
@@ -467,16 +534,23 @@ loop(){
 				break;
 			}
 
-			case 3: { // Faz um giro de 90° para ficar em paralelo com a parede
-				escreverLCD(String("girando"));
+			case 3: { // Etapa 3: Faz um giro ao redor do ponto central até ficar em paralelo à parede.
+				escreverLCD(String("girando")); // Escreve a etapa no painel LCD
 
+				/*
+					Para fazer este giro de forma mais preciso é usada a contagem
+					de pulsos do sensor Encoder. Por testes, cheguei a conclusão de que a melhor quantidade de pulsos para 
+					o giro de 90° são 40 pulsos.
+				*/
 				if(!contandoPulsosEncoder){
-					ligarMedicaoDeRoda();
+					ligarContagemDePulsosSensorEncoder();
 				}
 				
 				if(pulsos < 40){
+					// Gira o carro:
 					controlarMotores(-1, true);
 				} else {
+					// Freia o giro e passa para a próxima etapa.
 					controlarMotores(1, true);
 					delay(100);
 					controlarMotores(0);
@@ -487,101 +561,198 @@ loop(){
 				break;
 			}
 
-			case 4: {
+			case 4: {// Etapa 4: Vai de um obstáculo ate outro, medindo e fazendo correções para que o trajeto seja feito a forma mais reta o possivel.
 
-				if(distanciaInicialDaParedeDireita == 0){
+				if(distanciaInicialDaParedeDireita == 0){ /* Se a distancia inicial da parede 
+				direita for igual a 0, provavelmente é a primeira vez que o loop
+				é chamado neste etapa ou uma correção acaba de ser feita. Em 
+				ambos os caos, o valor deve configurado para a distancia atual */
 					distanciaInicialDaParedeDireita = ultrassonicoDireito.Ranging(CM);
 				}
 
-				if(corrigindoPercurso){
-					escreverLCD(String("realizando"), String("correcao"));
+				if(corrigindoPercurso){ /* Se foi detectada a necessidade de fazer
+				uma correção de trajeto, a variavel "corrigindoPercurso" foi setada 
+				como verdadeira e inicia o giro. Este giro deve se manter até 
+				alcançar a quantidade configurada de pulsos. 
+				*/
+					escreverLCD(String("realizando"), String("correcao")); //Escreve o estado atual no painel LCD
 
-					if(pulsos - pulsosIniciaisDaCorrecao > 1){
+					if(pulsos - pulsosIniciaisDaCorrecao > 1){ /* Se a quantidade contada
+					de pulsos após a necessidade de correção for maior que 1, 
+					a correção foi realizada e pode voltar ao trajeto normal.
+					*/ 
 						controlarMotores(0);
 						corrigindoPercurso = false;
-						contadorDeCorrecoes++;
+						contadorDeCorrecoes++; // Contagem necessária para que os pulsos contabilizados durante as correções sejam desconsiderados no resultado final.
 						delay(500);
 
-						distanciaInicialDaParedeDireita = 0;
+						distanciaInicialDaParedeDireita = 0;// Valor reiniciado para que na próxima chamada do loop seja dado o novo valor de distancia.
 
-						momentoDaUltimaCorrecao = millis();
+						momentoDaUltimaCorrecao = millis(); // Usado para dar um intervalo entre as correções e evitar interferencias dos sensores.
 
 						return;
 					} else return;
-				} else if(contadorDeRepeticoes == 0){
-					escreverLCD(String("buscando inicio"), String("para medicao"));
+				} else if(contadorDeRepeticoes == 0){ /* Na primeira vez fazendo 
+					aquela linha, o carro provavelmente iniciou em algum ponto 
+					aleatório da parede, sendo necessário ir para o inicio 
+					antes de iniciar a verdadeira medição 
+					*/
+					escreverLCD(String("buscando inicio"), String("para medicao")); //Escreve o status no painel LCD
 				} else {
 					escreverLCD(
 						"medicao "+(String)contadorDeRepeticoes+"/5"
-					);
+					); // Escreve o numero da medição atual para que o usuário possa acompanhar o processo. 
 				}
 
+
+				/* 
+					O carro só pode andar se a distancia atual do sensor referente 
+					a direção do carro  for maior que a distancia minima configurada 
+					pela constante "DISTANCIA_MINIMA_PAREDE". Caso contrário, 
+					a linha esta completa e o carro deve ou refazer a linha, ou 
+					caso já tenha feito todas as repetições, passar para a próxima etapa.
+				*/
+
 				bool podeAndar = indoParaFrente? 
-					(ultrassonicoFrontal.Ranging(CM) > DISTANCIA_MINIMA_PAREDE) 
+					(ultrassonicoFrontal.Ranging(CM) > DISTANCIA_MINIMA_PAREDE) // Caso esteja indo para frente, o sensor referente a direção é o sensor frontal
 						: 
-					(ultrassonicoTraseiro.Ranging(CM) > DISTANCIA_MINIMA_PAREDE);
+					(ultrassonicoTraseiro.Ranging(CM) > DISTANCIA_MINIMA_PAREDE); // Caso esteja indo para trás, o sensor referente a direção é o sensor traseiro
 
 				if(podeAndar){
 
-					int variacaoLateral = ultrassonicoDireito.Ranging(CM) - distanciaInicialDaParedeDireita;
+					int variacaoLateral = ultrassonicoDireito.Ranging(CM) - distanciaInicialDaParedeDireita; 
+					/* 
+						Variação lateral é o quanto a distancia
+						entre o carro e a parede do lado direito mudou, caso 
+						esta mudança for superior a 3cm's, é necessário uma 
+						correção de trajeto
+					*/
 
-					if(abs(variacaoLateral) > 3 && abs(variacaoLateral) < 50 && millis() - momentoDaUltimaCorrecao > 1500){
-
-						frear(indoParaFrente? -1:1);
-						corrigindoPercurso = true;
+					if(abs(variacaoLateral) > 3 && abs(variacaoLateral) < 50 && millis() - momentoDaUltimaCorrecao > 1500){ 
+						/* 
+							Se a variacao de distancia lateral for maior que 3cms,
+							menor que 50cms (Para evitar interferencias do sensor
+							de distancia), e já tiver se passado mais que 1segundo
+							e meio desde a ultima correção, uma nova é iniciada.
+						*/
+						frear(indoParaFrente? -1:1); // Freia o motor
+						corrigindoPercurso = true; // Atualiza o status de medição para realizando uma correção
 						delay(500);
-						pulsosIniciaisDaCorrecao = pulsos;
+						pulsosIniciaisDaCorrecao = pulsos;// Configura a quantidade de pulsos ao iniciar a correção
 
 						if((indoParaFrente && variacaoLateral > 0) || (!indoParaFrente && variacaoLateral < 0)) {
+
+							/* 
+								Se o carro estiver indo para frente e a variação 
+								for para fora em relação à parede, ou o carro estiver 
+								indo para trás e a variação for para dentro em 
+								relação a parede , significa que o carro deve girar em sentido horario
+							*/
 							controlarMotores(1, true);
 						} else {
+							/* 
+								Se o carro estiver indo para frente e a variação 
+								for para dentro em relação à parede, ou o carro estiver 
+								indo para trás e a variação for para fora em 
+								relação a parede , significa que o carro deve girar em sentido antihorario
+							*/
 							controlarMotores(-1, true);
 						}
 
 					} else {
-						controlarMotores(indoParaFrente? -1:1);
+						controlarMotores(indoParaFrente? -1:1); // Caso não seja necessário nenhuma correção, o carro pode andar normalmente em seu trajeto atual.
 					}
-
 
 				} else {
 
-					frear(indoParaFrente? -1:1);
+					/*
+						Caso o carro tenha encontrado um obstáculo, significa 
+						que ele deve voltar a percorrer o mesmo trajeto em 
+						sentido contrário ou mostrar o resultado para o usuario 
+						pelo painel LCD.
+					*/
 
-					if(contadorDeRepeticoes == 0){
+					frear(indoParaFrente? -1:1); 
+
+					if(contadorDeRepeticoes == 0){ 
+					/* 
+						Caso seja a primeira repetição  da medição, a contagem de
+						pulsos deve ser ignorada por provavelmente o carro não 
+						ter iniciado a medição no inicio.
+					*/
 						pulsos = 0;
-						ligarMedicaoDeRoda();
+						ligarContagemDePulsosSensorEncoder();
 
-						indoParaFrente = !indoParaFrente;
-						contadorDeRepeticoes++;
+						indoParaFrente = !indoParaFrente; // Inverte o sentido do carro
+						contadorDeRepeticoes++; // Soma mais um na contagem de repetições de medição
 					} else if(contadorDeRepeticoes == 5) {
+
+						/*
+							Caso já tenham sido feitas 5 medições na mesma linha 
+							já podemos fazer a média de pulsos e calcular a 
+							distancia entre os dois obstáculos. 
+						*/
 
 						pulsosTotaisDuranteMedicao = pulsosTotaisDuranteMedicao+pulsos;
 
 						if(primeiraMedicao == 0){
+							/* 
+								Caso ainda seja a medição da primeira dimensão da 
+								sala, o robo deve armazenar o resultado na variável 
+								primeiraMedicao e reiniciar este processo para que 
+								seja medido a segunda dimensão
+							*/
+
+							/*
+								resultado = (pulsosTotaisDuranteMedicao- contadorDeCorrecoes)/contadorDeRepeticoes * CMS_POR_PULSO +(2*DISTANCIA_MINIMA_PAREDE) +26;
+									(pulsosTotaisDuranteMedicao- contadorDeCorrecoes): Quantidade de pulsos desconsiderando os usados para fazer correções.
+									(pulsosTotaisDuranteMedicao- contadorDeCorrecoes)/contadorDeRepeticoes: Média de pulsos por cada repetição da medição feita.
+									2*DISTANCIA_MINIMA_PAREDE: Distancia do primeiro obstáculo + distancia do segundo obstáculo.
+									26: Tamanho do carro.
+							*/
 							primeiraMedicao = (pulsosTotaisDuranteMedicao- contadorDeCorrecoes)/contadorDeRepeticoes * CMS_POR_PULSO +(2*DISTANCIA_MINIMA_PAREDE) +26;
-							escreverLCD("Aguarde", String(primeiraMedicao) +" cms");
-							delay(2000);
-							reiniciarEstado();
+							escreverLCD("Aguarde", String(primeiraMedicao) +" cms"); //Escreve o resultado a primeira medição no painel LCD para que o usuario possa acompanhar.
+							delay(2000); // Garante que a mensagem fique no painel LCD durante dois segundos
+							reiniciarEstado(); // Reinicia as variaveis para que o carro volte para a primeira etapa, medindo a segunda dimensão da sala.
 
 						} else {
+							/* 
+								Ao realizar a medição da segunda dimensão da sala, 
+								o resultado deve ser calculado, exibido no painel LCD 
+								e o carro deve ser reiniciado.
+							*/
+
+							/*
+								resultado = (pulsosTotaisDuranteMedicao- contadorDeCorrecoes)/contadorDeRepeticoes * CMS_POR_PULSO +(2*DISTANCIA_MINIMA_PAREDE) +26;
+									(pulsosTotaisDuranteMedicao- contadorDeCorrecoes): Quantidade de pulsos desconsiderando os usados para fazer correções.
+									(pulsosTotaisDuranteMedicao- contadorDeCorrecoes)/contadorDeRepeticoes: Média de pulsos por cada repetição da medição feita.
+									2*DISTANCIA_MINIMA_PAREDE: Distancia do primeiro obstáculo + distancia do segundo obstáculo.
+									26: Tamanho do carro.
+							*/
 							int resultado = (pulsosTotaisDuranteMedicao- contadorDeCorrecoes)/contadorDeRepeticoes * CMS_POR_PULSO +(2*DISTANCIA_MINIMA_PAREDE) +26;
-							escreverLCD(String(primeiraMedicao) +" cms", String(resultado)+" cms");
-							delay(5000);
-							reiniciarEstado();
-							funcao = "desativado";
+							escreverLCD(String(primeiraMedicao) +" cms", String(resultado)+" cms"); //Escreve o resultado final no painel LCD
+							delay(5000); // Garante que o resultado fique escrito no painel durante 5 segundos
+							reiniciarEstado(); // Reinicia todas as variáveis do carro
 							primeiraMedicao = 0;
+							funcao = "desativado"; // Volta o status do carro para o inicial, onde  apenas espera por outro comando
 						}
 
 
 					} else {
-						pulsosTotaisDuranteMedicao = pulsosTotaisDuranteMedicao+pulsos;
-						escreverLCD(String(pulsosTotaisDuranteMedicao));
+						/*
+							Caso todas as medições configuradas ainda não tenham 
+							sido feitas, a contagem de pulsos atuais são armazenadas 
+							e o sentido do carro é invertido. Iniciando assim 
+							outra medição 
+						*/
+						pulsosTotaisDuranteMedicao = pulsosTotaisDuranteMedicao+pulsos; // Armazena a quantidade de pulsos contados neste medida
+						escreverLCD(String(pulsosTotaisDuranteMedicao)); 
 						delay(1000);
 
 						contadorDeRepeticoes++;
-						indoParaFrente = !indoParaFrente;
-						pulsos = 0;
-						ligarMedicaoDeRoda();
+						indoParaFrente = !indoParaFrente; // Inverter a direção do carro
+						pulsos = 0; // Reinicia a contagem de pulsos do sensor Encoder
+						ligarContagemDePulsosSensorEncoder(); // Garante que a contagem de pulsos do sensor Encoder esteja ligado
 					}
 
 				}
