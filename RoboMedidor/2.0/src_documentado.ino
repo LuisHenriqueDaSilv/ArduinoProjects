@@ -42,73 +42,70 @@ Portas LCD:
 ------Funções para controle dos motores------
 */
 
-void 
-controlarMotores(int direcao, bool direcaoInformadaEaDoCarro=false){
-    /*
-        Parâmetros:
-            direcaoInformadaEaDoCarro: Parâmetro responsável por informar se o comando enviado no 
-                parametro "direção" refere-se ao sentido de giro dos motores, 
-                ou do próprio carro.  
-            direcao: caso o parâmetro "direcaoInformadaEaDoCarro" seja true, refere-se ao sentido 
-                de giro do carro como um todo.  Caso contrário, refere se ao 
-                sentido de giro dos motores, controlando se o carro vai para 
-                frente ou para trás.
-                -1: Sentido anti-horario;
-                1: Sentido horario;
-    */
-
-
-	// Primeiro desliga todos os motores. Garantindo que o controle será 
-    // feito de forma correta
-	digitalWrite(MOTOR_DIREITO_ANTIHORARIO, 0);
-	digitalWrite(MOTOR_ESQUERDO_ANTIHORARIO, 0);
-	digitalWrite(MOTOR_DIREITO_HORARIO, 0);
-	digitalWrite(MOTOR_ESQUERDO_HORARIO, 0);
-
-
-	if(direcaoInformadaEaDoCarro){
-
-
-		if(direcao == 1){
-			// Gira os motores do lado esquerdo no sentido anti horario e os
-			// do lado direito no sentido contrário, fazendo com que o carro gire
-			digitalWrite(MOTOR_ESQUERDO_ANTIHORARIO, HIGH);
-			digitalWrite(MOTOR_DIREITO_HORARIO, HIGH);
-		} else if (direcao == -1){
-			// Gira os motores do lado direito no sentido anti horario e os
-			// do lado esquerdo no sentido contrário, fazendo com que o carro gire
-			digitalWrite(MOTOR_ESQUERDO_HORARIO, HIGH);
-			digitalWrite(MOTOR_DIREITO_ANTIHORARIO, HIGH);
-		}
-
-	} else {
-
-		if(direcao == 1){
-			// Faz todos os motores girarem no sentido horario
-			digitalWrite(MOTOR_DIREITO_HORARIO, HIGH);
-			digitalWrite(MOTOR_ESQUERDO_HORARIO, HIGH);
-		} else if(direcao == -1) {
-			// Faz todos os motores girarem no anti horario
-			digitalWrite(MOTOR_DIREITO_ANTIHORARIO, HIGH);
-			digitalWrite(MOTOR_ESQUERDO_ANTIHORARIO, HIGH);
-		}
-		
-	}
-
+void desligarMotores(){
+	digitalWrite(MOTOR_DIREITO_ANTIHORARIO, LOW);
+	digitalWrite(MOTOR_ESQUERDO_ANTIHORARIO, LOW);
+	digitalWrite(MOTOR_DIREITO_HORARIO, LOW);
+	digitalWrite(MOTOR_ESQUERDO_HORARIO, LOW);
 }
 
-void
-frear(int direcaoAtual=1){
+void andar(String direcao){
 
-  /*
-	Função destinada apenas a frear o carrinho da seguinte forma:
+	/*
+		Função destinada a ligar os motores no sentido anti horario ou horario, fazendo com que o carro ande para frente ou para trás, respectivamente
+	*/
+
+	desligarMotores();
+
+	if (direcao == "frente"){
+		// Liga os motores em sentido anti-horario, fazendo com que o carro ande para frente
+		digitalWrite(MOTOR_DIREITO_ANTIHORARIO, HIGH);
+		digitalWrite(MOTOR_ESQUERDO_ANTIHORARIO, HIGH);
+	}
+	else if (direcao == "ré"){
+		// Liga os motores em sentido horario, fazendo com que o carro ande para trás
+		digitalWrite(MOTOR_DIREITO_HORARIO, HIGH);
+		digitalWrite(MOTOR_ESQUERDO_HORARIO, HIGH);
+	}
+}
+
+void virarCarro(String lado){
+
+	/*
+		Função destinada a ligar os pares de motores laterais de forma separada, fazendo a frente do carro girar para os lados. 
+	*/
+
+	desligarMotores();
+
+	if (lado == "esquerda"){
+		// Liga o motor esquerdo em sentido horario e direito em anti-horario, fazendo com que a frente do carro gire para a esquerda
+		digitalWrite(MOTOR_ESQUERDO_HORARIO, HIGH);
+		digitalWrite(MOTOR_DIREITO_ANTIHORARIO, HIGH);
+	}
+	else if (lado == "direita"){
+		// Liga o motor direito em sentido horario e esquerdo em anti-horario, fazendo com que a frente do carro gire para a direita
+		digitalWrite(MOTOR_ESQUERDO_ANTIHORARIO, HIGH);
+		digitalWrite(MOTOR_DIREITO_HORARIO, HIGH);
+	}
+}
+
+void frear(String direcaoAtual){
+
+	/*
+	  Função destinada a frear o carrinho da seguinte forma:
 		Força o motor a fazer uma força contrária à direção em que ele estava girando
 		durante 100 milisegundos, evitando que o carro continue andando devido a inércia,
 		após isso, desliga os motores.
-  */
-  controlarMotores(direcaoAtual*-1);
-  delay(100);
-  controlarMotores(0);
+	*/
+
+	if (direcaoAtual == "frente"){
+		andar("ré");
+	}
+	else{
+		andar("frente");
+	}
+	delay(100);
+	desligarMotores();
 }
 
 
@@ -166,6 +163,8 @@ escreverLCD(String primeiraLinha, String segundaLinha = ""){
 ------Controle de funções------
 */
 
+// TODO: implementar a descrição:
+
 /*
 O carro tem 3 funções:
 	Desativado: O carro não faz nada, apenas fica aguardando a troca de função.
@@ -190,8 +189,7 @@ troca de função e o inicio do funcionamento do carro com tal função */
 void 
 trocarFuncao(){
 
-
-	/* 
+	/*
 		O intervalo de tempo entre a ultima troca de função deve ser maior que 500ms
 		para evitar interferencias no botão. 
 
@@ -205,6 +203,7 @@ trocarFuncao(){
 				medicao livre -> medicao completa
 				medicao completa -> retorna ao desativado
 		*/
+
 		if(funcao == "desativado"){
 			funcao = "medicao livre";
 		} else if(funcao == "medicao livre"){
@@ -220,7 +219,6 @@ trocarFuncao(){
 		ultimaTrocaDeFuncao = millis();
 		inicioDelayDeTrocaDeFuncao = millis();
 	}
-
 
 }
 
@@ -243,7 +241,7 @@ volatile bool contandoPulsosEncoder = false; /* Variavel responsável por armaze
 se o status de contagem de pulsos do sensor encoder. false: desligado. true: ligado 
 */
 
-void
+void 
 contarPulsos(){
 
 	/*
@@ -327,7 +325,7 @@ reiniciarEstado(){
 
 	/* 
 		Reinicia o estado de todas as variáveis para os valores padrões e 
-		desliga as funções opcionais do carro. 
+		desliga as funções opcionais do carro. Para fazer uma nova medição
 	*/
 
 	// Variaveis globais
@@ -344,7 +342,7 @@ reiniciarEstado(){
 	contadorDeCorrecoes = 0;
 	momentoDaUltimaCorrecao = 0;
 
-	controlarMotores(0);
+	desligarMotores();
 	desligarContagemDePulsosSensorEncoder();
 }
 
@@ -368,6 +366,9 @@ setup() {
 
 	// Configurando o modo de interrupção do botão de troca de função
 	attachInterrupt(digitalPinToInterrupt(PINO_BOTAO_DE_CONTROLE), trocarFuncao, FALLING); // (porta do arduino onde esta ligado o botão, função chamada ao receber um pulso, tipo de interrupção que deve ser recebida)
+
+	//TODO: Aumentar interatividade com o usuario por textos
+
 }
 
 void 
@@ -388,6 +389,7 @@ loop(){
 		entre a ultima troca de função e o inicio da medição para que o usuário tenha 
 		tempo de ler a função selecionada. 
 	*/ 
+
 
 	//Estrutura de controle das funções:
 	if(funcao == "medicao livre"){
@@ -410,13 +412,13 @@ loop(){
 					o primeiro obstáculo está completa e o carro pode passar para 
 					a próxima etapa  
 				*/
-				bool poderAndar = ultrassonicoFrontal.Ranging(CM) > DISTANCIA_MINIMA_PAREDE; 
-				if(poderAndar){
+				bool podeAndar = ultrassonicoFrontal.Ranging(CM) > DISTANCIA_MINIMA_PAREDE; 
+				if(podeAndar){
 					// Liga os motores.
-					controlarMotores(-1); 
+					andar("frente");
 				} else {
 					// Freia e passa para a próxima etapa.
-					frear(-1); 
+					frear("frente");
 					delay(500);
 					etapa++;
 				}
@@ -439,13 +441,13 @@ loop(){
 					inicial de aguardar um novo comando. 
 				*/
 
-				bool poderAndar = ultrassonicoTraseiro.Ranging(CM) > DISTANCIA_MINIMA_PAREDE;
-				if(poderAndar){
+				bool podeAndar = ultrassonicoTraseiro.Ranging(CM) > DISTANCIA_MINIMA_PAREDE;
+				if(podeAndar){
 					// Liga os motores
-					controlarMotores(1); 
+					andar("ré");
 				} else {
 					desligarContagemDePulsosSensorEncoder(); 
-					frear(1);
+					frear("ré");
 
 					/*
 						Calcula a distancia em CM's usando a quantidade de pulsos 
@@ -469,7 +471,7 @@ loop(){
 			}
 			default: {
 
-				controlarMotores(0);
+				desligarMotores();
 				reiniciarEstado(); // Reinicia o valor de todas as variaveis para os valores padrões
 				funcao = "desativado"; // Desativa o carro.
 				break;
@@ -505,13 +507,13 @@ loop(){
 				*/
 				escreverLCD(String("buscando"), String("barreira")); // Escreve a etapa no painel LCD
 
-				bool poderAndar = ultrassonicoFrontal.Ranging(CM) > DISTANCIA_MINIMA_PAREDE;
-				if(poderAndar){
+				bool podeAndar = ultrassonicoFrontal.Ranging(CM) > DISTANCIA_MINIMA_PAREDE;
+				if(podeAndar){
 					//Liga os motores
-					controlarMotores(-1);
+					andar("frente");
 				} else {
 					// Freia e passa para a próxima etapa.
-					frear(-1); 
+					frear("frente"); 
 					delay(500);
 					etapa++;
 				}
@@ -523,10 +525,10 @@ loop(){
 				escreverLCD(String("afastando"), String("para girar"));// Escreve a etapa no painel LCD
 
 				if(ultrassonicoFrontal.Ranging(CM) < 20){ // Anda para trás até criar uma distancia de 20cm
-					controlarMotores(1);
+					andar("ré");
 				}else {
 					// Freia e passa para a próxima etapa.
-					frear(1);
+					frear("ré");
 					delay(500);
 					etapa++;
 				}
@@ -548,12 +550,12 @@ loop(){
 				
 				if(pulsos < 40){
 					// Gira o carro:
-					controlarMotores(-1, true);
+					virarCarro("esquerda");
 				} else {
 					// Freia o giro e passa para a próxima etapa.
-					controlarMotores(1, true);
+					virarCarro("esquerda");
 					delay(100);
-					controlarMotores(0);
+					desligarMotores();
 
 					etapa++;
 				}
@@ -581,7 +583,7 @@ loop(){
 					de pulsos após a necessidade de correção for maior que 1, 
 					a correção foi realizada e pode voltar ao trajeto normal.
 					*/ 
-						controlarMotores(0);
+						desligarMotores();
 						corrigindoPercurso = false;
 						contadorDeCorrecoes++; // Contagem necessária para que os pulsos contabilizados durante as correções sejam desconsiderados no resultado final.
 						delay(500);
@@ -635,7 +637,11 @@ loop(){
 							de distancia), e já tiver se passado mais que 1segundo
 							e meio desde a ultima correção, uma nova é iniciada.
 						*/
-						frear(indoParaFrente? -1:1); // Freia o motor
+						if(indoParaFrente){
+							frear("frente");
+						} else {
+							frear("ré");
+						}
 						corrigindoPercurso = true; // Atualiza o status de medição para realizando uma correção
 						delay(500);
 						pulsosIniciaisDaCorrecao = pulsos;// Configura a quantidade de pulsos ao iniciar a correção
@@ -648,7 +654,7 @@ loop(){
 								indo para trás e a variação for para dentro em 
 								relação a parede , significa que o carro deve girar em sentido horario
 							*/
-							controlarMotores(1, true);
+							virarCarro("direita");
 						} else {
 							/* 
 								Se o carro estiver indo para frente e a variação 
@@ -656,11 +662,15 @@ loop(){
 								indo para trás e a variação for para fora em 
 								relação a parede , significa que o carro deve girar em sentido antihorario
 							*/
-							controlarMotores(-1, true);
+							virarCarro("esquerda");
 						}
 
 					} else {
-						controlarMotores(indoParaFrente? -1:1); // Caso não seja necessário nenhuma correção, o carro pode andar normalmente em seu trajeto atual.
+						if(indoParaFrente){// Caso não seja necessário nenhuma correção, o carro pode andar normalmente em seu trajeto atual.
+							andar("frente");
+						} else {
+							andar("ré"); 
+					} 
 					}
 
 				} else {
@@ -671,8 +681,12 @@ loop(){
 						sentido contrário ou mostrar o resultado para o usuario 
 						pelo painel LCD.
 					*/
-
-					frear(indoParaFrente? -1:1); 
+					
+					if(indoParaFrente){
+						frear("frente");
+					} else {
+						frear("ré"); 
+					}
 
 					if(contadorDeRepeticoes == 0){ 
 					/* 
@@ -761,7 +775,7 @@ loop(){
 			}
 			
 			default: {
-				controlarMotores(0);
+				desligarMotores();
 				reiniciarEstado();
 				funcao = "desativado";
 
