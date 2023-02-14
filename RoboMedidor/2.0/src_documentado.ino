@@ -163,16 +163,22 @@ escreverLCD(String primeiraLinha, String segundaLinha = ""){
 ------Controle de funções------
 */
 
-// TODO: implementar a descrição:
-
 /*
 O carro tem 3 funções:
 	Desativado: O carro não faz nada, apenas fica aguardando a troca de função.
 	Medicao completa: Mede duas dimensões de uma sala usando como referencia duas das paredes.
 	Medicao livre:	Mede a distancia entre dois obstáculos.
+
+Para alterar entre os modos, é necessário que o botão posicionado na parte frontal 
+do carro seja pressionado uma unica vez para alterar entre o modo atual e o próximo. 
+A sequencia em que as funções são alteradas é a seguinte:
+	desativado -> medicao livre
+	medicao livre -> medicao completa
+	medicao completa -> retorna ao desativado
+
 Para detectar quando o botão é pressionado, é usado a função de interrupção do Arduino. 
 Assim que o arduino detecta uma interrupção na porta configurada, a execução da função principal (Loop) 
-é pausada e a função configurada é chamada
+é pausada e a função configurada no setup (atráves  da atachInterrupt) é chamada
 */
 String funcao = "desativado"; // Variavel responsavel por armazenar a função atual do carro
 String ultimaFuncaoLoop; /* Variavel responsavel por armazenar a 
@@ -196,13 +202,6 @@ trocarFuncao(){
 		Tempo desde o inicio da execução do programa - tempo da ultima troca de função =  Intervalo de tempo entre a ultima troca de função e agora
 	*/
 	if(millis() - ultimaTrocaDeFuncao > 500){  
-
-		/*
-			Sequencia de troca de modo:
-				desativado -> medicao livre
-				medicao livre -> medicao completa
-				medicao completa -> retorna ao desativado
-		*/
 
 		if(funcao == "desativado"){
 			funcao = "medicao livre";
@@ -259,8 +258,6 @@ ligarContagemDePulsosSensorEncoder(){
 
 		attachInterrupt é a função do arduino responsável por configurar as 
 		portas com função de interrupção.
-
-
 	*/
 	attachInterrupt(digitalPinToInterrupt(SENSOR_ENCODER), contarPulsos, CHANGE);  // (porta do arduino onde esta ligado o sensor encoder, função chamada ao receber um pulso, tipo de interrupção que deve ser recebida)
 	contandoPulsosEncoder = true;
@@ -350,8 +347,11 @@ reiniciarEstado(){
 /*
 ------Setup e Loop------
 */
+
 void 
 setup() {
+
+	Serial.begin(9600);
 
 	// Configurando o modo das portas usadas do Arduino
 	pinMode(MOTOR_DIREITO_ANTIHORARIO, OUTPUT); // Porta para controle do motor como saida.
@@ -367,7 +367,14 @@ setup() {
 	// Configurando o modo de interrupção do botão de troca de função
 	attachInterrupt(digitalPinToInterrupt(PINO_BOTAO_DE_CONTROLE), trocarFuncao, FALLING); // (porta do arduino onde esta ligado o botão, função chamada ao receber um pulso, tipo de interrupção que deve ser recebida)
 
-	//TODO: Aumentar interatividade com o usuario por textos
+	
+	// Escrever mensagem inicial do robo dando um "tutorial" de como selecionar os modos: 
+	escreverLCD("Aperte o botao", "frontal para..."); 
+	delay(2000);
+	escreverLCD("variar entre", "as funcoes de...");
+	delay(2000);
+	escreverLCD("medicao.");
+	delay(2000);
 
 }
 
@@ -383,6 +390,9 @@ loop(){
 		reiniciarEstado();
 		ultimaFuncaoLoop = funcao;
 		escreverLCD(funcao);
+
+		if(funcao == "desativado"){
+		}
 	}
 
 	if(millis() - inicioDelayDeTrocaDeFuncao < 3000){return;}; /* Delay de 3 segundos 
