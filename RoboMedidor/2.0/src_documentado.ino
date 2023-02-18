@@ -12,14 +12,16 @@
 #define MOTOR_ESQUERDO_HORARIO 4
 #define MOTOR_ESQUERDO_ANTIHORARIO 5
 
-#define SENSOR_ENCODER 2
+#define SENSOR_ENCODER_FRONTAL_ESQUERDO 2
+#define SENSOR_ENCODER_TRASEIRO_ESQUERDO 18
+#define SENSOR_ENCODER_TRASEIRO_DIREITO 19
 #define PINO_BOTAO_DE_CONTROLE 3
 
 #define TRIG_ULTRASSONICO_FRONTAL A0
 #define ECHO_ULTRASSONICO_FRONTAL A1
 
-#define TRIG_ULTRASSONICO_DIREITO 11
-#define ECHO_ULTRASSONICO_DIREITO 10
+#define TRIG_ULTRASSONICO_DIREITO A6
+#define ECHO_ULTRASSONICO_DIREITO A7
 
 #define TRIG_ULTRASSONICO_TRASEIRO A3
 #define ECHO_ULTRASSONICO_TRASEIRO A2
@@ -235,7 +237,8 @@ trocarFuncao(){
 		o sistema de interrupções, contabiliza o pulso. 
 */
 
-volatile long pulsos; // Quantidade de pulsos enviados pelo sensor encoder
+volatile long ultimoMomentoPulso = 0;
+volatile float pulsos; // Quantidade de pulsos enviados pelo sensor encoder
 volatile bool contandoPulsosEncoder = false; /* Variavel responsável por armazenar 
 se o status de contagem de pulsos do sensor encoder. false: desligado. true: ligado 
 */
@@ -243,12 +246,19 @@ se o status de contagem de pulsos do sensor encoder. false: desligado. true: lig
 void 
 contarPulsos(){
 
+	// if(millis() - ultimoMomentoPulso > 10){
+	// 	pulsos++;
+	// 	ultimoMomentoPulso = millis();
+	// }
+
+	pulsos = pulsos + 0.333333;
+
 	/*
 		Função chamada pelo arduino quando é detectado um pulso na porta configurada
 		para o sensor encoder. 
 	*/
 
-	pulsos++; // Adiciona mais um pulso na contagem de pulsos.
+	 // Adiciona mais um pulso na contagem de pulsos.
 }
 
 void
@@ -259,7 +269,9 @@ ligarContagemDePulsosSensorEncoder(){
 		attachInterrupt é a função do arduino responsável por configurar as 
 		portas com função de interrupção.
 	*/
-	attachInterrupt(digitalPinToInterrupt(SENSOR_ENCODER), contarPulsos, CHANGE);  // (porta do arduino onde esta ligado o sensor encoder, função chamada ao receber um pulso, tipo de interrupção que deve ser recebida)
+	attachInterrupt(digitalPinToInterrupt(SENSOR_ENCODER_TRASEIRO_ESQUERDO), contarPulsos, CHANGE); 
+	attachInterrupt(digitalPinToInterrupt(SENSOR_ENCODER_TRASEIRO_DIREITO), contarPulsos, CHANGE);  // (porta do arduino onde esta ligado o sensor encoder, função chamada ao receber um pulso, tipo de interrupção que deve ser recebida)
+	attachInterrupt(digitalPinToInterrupt(SENSOR_ENCODER_FRONTAL_ESQUERDO), contarPulsos, CHANGE);  // (porta do arduino onde esta ligado o sensor encoder, função chamada ao receber um pulso, tipo de interrupção que deve ser recebida)
 	contandoPulsosEncoder = true;
 }
 
@@ -270,7 +282,9 @@ desligarContagemDePulsosSensorEncoder(){
 		Função para desativar a contagem de pulsos do sensor encoder
 	*/
 
-	detachInterrupt(digitalPinToInterrupt(SENSOR_ENCODER));  // Desliga a função de interrupção na porta do sensor encoder
+	detachInterrupt(digitalPinToInterrupt(SENSOR_ENCODER_TRASEIRO_DIREITO));  // Desliga a função de interrupção na porta do sensor encoder
+	detachInterrupt(digitalPinToInterrupt(SENSOR_ENCODER_FRONTAL_ESQUERDO));  // Desliga a função de interrupção na porta do sensor encoder
+	detachInterrupt(digitalPinToInterrupt(SENSOR_ENCODER_TRASEIRO_ESQUERDO));  // Desliga a função de interrupção na porta do sensor encoder
 	contandoPulsosEncoder = false;
 }
 
@@ -307,6 +321,7 @@ do programa e a ultima correção. Usado para configurar um intervalo minimo ent
 cada correção */
 
 
+int distanciaInicialDaParede = 0;
 int primeiraMedicao; /* Armazena o resultado da medição da primeira dimensão da
 função "Medicao completa" enquanto a segunda está sendo medida.
 */
@@ -353,6 +368,7 @@ setup() {
 
 	Serial.begin(9600);
 
+
 	// Configurando o modo das portas usadas do Arduino
 	pinMode(MOTOR_DIREITO_ANTIHORARIO, OUTPUT); // Porta para controle do motor como saida.
 	pinMode(MOTOR_DIREITO_HORARIO, OUTPUT); // Porta para controle do motor como saida.
@@ -369,17 +385,25 @@ setup() {
 
 	
 	// Escrever mensagem inicial do robo dando um "tutorial" de como selecionar os modos: 
-	escreverLCD("Aperte o botao", "frontal para..."); 
-	delay(2000);
-	escreverLCD("variar entre", "as funcoes de...");
-	delay(2000);
-	escreverLCD("medicao.");
-	delay(2000);
+	// escreverLCD("Aperte o botao", "frontal para..."); 
+	// delay(2000);
+	// escreverLCD("variar entre", "as funcoes de...");
+	// delay(2000);
+	// escreverLCD("medicao.");
+	// delay(2000);
 
 }
 
 void 
 loop(){
+
+	// if(!contandoPulsosEncoder){
+	// 	ligarContagemDePulsosSensorEncoder();
+	// }
+
+	// Serial.println(pulsos);
+	// escreverLCD(String(pulsos), "");
+	// return;
 
 	
 	if(ultimaFuncaoLoop != funcao){ 
@@ -430,8 +454,10 @@ loop(){
 					// Freia e passa para a próxima etapa.
 					frear("frente");
 					delay(500);
+					distanciaInicialDaParede = ultrassonicoFrontal.Ranging(CM);
 					etapa++;
 				}
+
 
 				break;
 			}
@@ -467,6 +493,8 @@ loop(){
 								2*DISTANCIA_MINIMA_PAREDE: Distancia do primeiro obstáculo + distancia do segundo obstáculo.
 								26: Distancia entre uma ponta e outra do carro. 
 					*/
+
+					Serial.println(pulsos);
 					int resultadoDeMedicao = pulsos * CMS_POR_PULSO + 2* DISTANCIA_MINIMA_PAREDE + 26;
 					escreverLCD("Resultado:", String(resultadoDeMedicao) + " CMs"); // Escreve no painel LCD o resultado da medição .
 					delay(5000); 
@@ -589,7 +617,7 @@ loop(){
 				*/
 					escreverLCD(String("realizando"), String("correcao")); //Escreve o estado atual no painel LCD
 
-					if(pulsos - pulsosIniciaisDaCorrecao > 1){ /* Se a quantidade contada
+					if(pulsos - pulsosIniciaisDaCorrecao > 3){ /* Se a quantidade contada
 					de pulsos após a necessidade de correção for maior que 1, 
 					a correção foi realizada e pode voltar ao trajeto normal.
 					*/ 
@@ -640,7 +668,7 @@ loop(){
 						correção de trajeto
 					*/
 
-					if(abs(variacaoLateral) > 3 && abs(variacaoLateral) < 50 && millis() - momentoDaUltimaCorrecao > 1500){ 
+					if(abs(variacaoLateral) > 1 && abs(variacaoLateral) < 50 && millis() - momentoDaUltimaCorrecao > 1500){ 
 						/* 
 							Se a variacao de distancia lateral for maior que 3cms,
 							menor que 50cms (Para evitar interferencias do sensor
@@ -734,7 +762,7 @@ loop(){
 									2*DISTANCIA_MINIMA_PAREDE: Distancia do primeiro obstáculo + distancia do segundo obstáculo.
 									26: Tamanho do carro.
 							*/
-							primeiraMedicao = (pulsosTotaisDuranteMedicao- contadorDeCorrecoes)/contadorDeRepeticoes * CMS_POR_PULSO +(2*DISTANCIA_MINIMA_PAREDE) +26;
+							primeiraMedicao = (pulsosTotaisDuranteMedicao- (contadorDeCorrecoes * 0.333333))/contadorDeRepeticoes * CMS_POR_PULSO +(2*DISTANCIA_MINIMA_PAREDE) +26;
 							escreverLCD("Aguarde", String(primeiraMedicao) +" cms"); //Escreve o resultado a primeira medição no painel LCD para que o usuario possa acompanhar.
 							delay(2000); // Garante que a mensagem fique no painel LCD durante dois segundos
 							reiniciarEstado(); // Reinicia as variaveis para que o carro volte para a primeira etapa, medindo a segunda dimensão da sala.
