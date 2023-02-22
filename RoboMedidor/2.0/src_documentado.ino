@@ -169,13 +169,13 @@ escreverLCD(String primeiraLinha, String segundaLinha = ""){
 O carro tem 3 funções:
 	Desativado: O carro não faz nada, apenas fica aguardando a troca de função.
 	Medicao completa: Mede duas dimensões de uma sala usando como referencia duas das paredes.
-	Medicao livre:	Mede a distancia entre dois obstáculos.
+	Medicao unica: Mede a distancia entre duas paredes.
 
 Para alterar entre os modos, é necessário que o botão posicionado na parte frontal 
 do carro seja pressionado uma unica vez para alterar entre o modo atual e o próximo. 
 A sequencia em que as funções são alteradas é a seguinte:
-	desativado -> medicao livre
-	medicao livre -> medicao completa
+	desativado -> medicao unica
+	medicao unica -> medicao completa
 	medicao completa -> retorna ao desativado
 
 Para detectar quando o botão é pressionado, é usado a função de interrupção do Arduino. 
@@ -206,8 +206,8 @@ trocarFuncao(){
 	if(millis() - ultimaTrocaDeFuncao > 500){  
 
 		if(funcao == "desativado"){
-			funcao = "medicao livre";
-		} else if(funcao == "medicao livre"){
+			funcao = "medicao unica";
+		} else if(funcao == "medicao unica"){
 			funcao = "medicao completa";
 		} else if (funcao == "medicao completa"){
 			funcao = "desativado";
@@ -397,14 +397,6 @@ setup() {
 void 
 loop(){
 
-	// if(!contandoPulsosEncoder){
-	// 	ligarContagemDePulsosSensorEncoder();
-	// }
-
-	// Serial.println(pulsos);
-	// escreverLCD(String(pulsos), "");
-	// return;
-
 	
 	if(ultimaFuncaoLoop != funcao){ 
 		/* 
@@ -415,8 +407,6 @@ loop(){
 		ultimaFuncaoLoop = funcao;
 		escreverLCD(funcao);
 
-		if(funcao == "desativado"){
-		}
 	}
 
 	if(millis() - inicioDelayDeTrocaDeFuncao < 3000){return;}; /* Delay de 3 segundos 
@@ -424,116 +414,8 @@ loop(){
 		tempo de ler a função selecionada. 
 	*/ 
 
-
-	//Estrutura de controle das funções:
-	if(funcao == "medicao livre"){
-
-		/*
-			No modo "medicao livre" o carro deve andar para frente até encontrar 
-			o primeiro obstáculo. Em seguida, começara a andar no sentido contrário
-			contando os pulsos do sensor encoder, medindo assim, a distancia entre
-			os dois obstáculos.
-		*/
-
-		switch (etapa){
-			case 1: { // Primeira etapa: Anda até encontrar um obstáculo
-				escreverLCD(String("Buscando"), String("barreira")); // Escreve no painel LCD a etapa atual
-
-				/* 
-					O carro só pode andar se a distancia atual do sensor frontal 
-					for maior que a distancia minima configurada pela constante 
-					"DISTANCIA_MINIMA_PAREDE". Caso contrário, a etapa de encontrar 
-					o primeiro obstáculo está completa e o carro pode passar para 
-					a próxima etapa  
-				*/
-				bool podeAndar = ultrassonicoFrontal.Ranging(CM) > DISTANCIA_MINIMA_PAREDE; 
-				if(podeAndar){
-					// Liga os motores.
-					andar("frente");
-				} else {
-					// Freia e passa para a próxima etapa.
-					frear("frente");
-					delay(500);
-					distanciaInicialDaParede = ultrassonicoFrontal.Ranging(CM);
-					etapa++;
-				}
-
-
-				break;
-			}
-			case 2: { // Etapa 2: Mede a distancia entre o primeiro obstáculo encontrado e o primeiro obstáculo do sentido contrário.
-				escreverLCD(String("medindo reta"));// Escreve no painel LCD a etapa atual
-
-				if(!contandoPulsosEncoder){ // Ativa a contagem de pulsos do sensor encoder caso ainda não esteja ativa.
-					ligarContagemDePulsosSensorEncoder(); 
-				}
-
-				/* 
-					O carro só pode andar se a distancia atual do sensor traseiro 
-					for maior que a distancia minima configurada pela constante 
-					"DISTANCIA_MINIMA_PAREDE". Caso contrário, a etapa de medição 
-					foi completa. O resultado deve ser mostrado no painel LCD durante
-					5 segundos, o carro e suas variáveis são reiniciados ao estado 
-					inicial de aguardar um novo comando. 
-				*/
-
-				bool podeAndar = ultrassonicoTraseiro.Ranging(CM) > DISTANCIA_MINIMA_PAREDE;
-				if(podeAndar){
-					// Liga os motores
-					andar("ré");
-				} else {
-					desligarContagemDePulsosSensorEncoder(); 
-					frear("ré");
-
-					/*
-						Calcula a distancia em CM's usando a quantidade de pulsos 
-						do sensor Encoder:
-							tamanho em cms = pulsos * CMS_POR_PULSO + 2* DISTANCIA_MINIMA_PAREDE + 26
-								Pulsos: Quantidade de pulsos do sensor encoder.
-								2*DISTANCIA_MINIMA_PAREDE: Distancia do primeiro obstáculo + distancia do segundo obstáculo.
-								26: Distancia entre uma ponta e outra do carro. 
-					*/
-
-					Serial.println(pulsos);
-					int resultadoDeMedicao = pulsos * CMS_POR_PULSO + 2* DISTANCIA_MINIMA_PAREDE + 26;
-					escreverLCD("Resultado:", String(resultadoDeMedicao) + " CMs"); // Escreve no painel LCD o resultado da medição .
-					delay(5000); 
-					etapa++; /* Passa para a próxima etapa. Por não existir o 
-								caso 3 neste estrutura de switch/case, acaba 
-								caindo no default. Onde o carro é 
-								reiniciado.
-							*/
-				}
-
-				break;
-			}
-			default: {
-
-				desligarMotores();
-				reiniciarEstado(); // Reinicia o valor de todas as variaveis para os valores padrões
-				funcao = "desativado"; // Desativa o carro.
-				break;
-			}
-		}
-		
-	} else if(funcao == "medicao completa"){
-
-		/*
-			No modo "medicao completa" o carro deve andar para frente até encontrar 
-			o primeiro obstáculo, girar ao redor de um ponto central, buscando 
-			ficar em paralelo à parede e voltar a procurar um obstáculo. Após isso,
-			o carro deve estar em paralelo a uma parede em seu lado direito, e 
-			de frente para outra. E enfim, começara a medir a primeira dimensão 
-			da sala de forma semelhante ao modo "medição livre", porem, 
-			repetindo a mesma linha diversas vezes para ter uma maior precisão. 
-			Após fazer a mesma linha algumas vezes, o resultado é armazenado na variável,
-			"primeiraMedicao" e o carro volta para a primeiro etapa de procurar 
-			um obstaculo e girar, porem, dessa vez ficando em paralelo à parede 
-			relativa à segunda dimensão da sala. 
-		*/
-
-
-		switch (etapa){
+	if(funcao != "desativado"){
+		switch (etapa) {
 			case 1: { // Etapa 1: Anda até encontrar um obstáculo.
 
 				/* 
@@ -600,7 +482,6 @@ loop(){
 				
 				break;
 			}
-
 			case 4: {// Etapa 4: Vai de um obstáculo ate outro, medindo e fazendo correções para que o trajeto seja feito a forma mais reta o possivel.
 
 				if(distanciaInicialDaParedeDireita == 0){ /* Se a distancia inicial da parede 
@@ -667,8 +548,10 @@ loop(){
 						esta mudança for superior a 3cm's, é necessário uma 
 						correção de trajeto
 					*/
-
-					if(abs(variacaoLateral) > 1 && abs(variacaoLateral) < 50 && millis() - momentoDaUltimaCorrecao > 1500){ 
+				
+					// && abs(variacaoLateral) < 50 && 
+					
+					if(abs(variacaoLateral) > 2 && millis() - momentoDaUltimaCorrecao > 500){ 
 						/* 
 							Se a variacao de distancia lateral for maior que 3cms,
 							menor que 50cms (Para evitar interferencias do sensor
@@ -708,7 +591,7 @@ loop(){
 							andar("frente");
 						} else {
 							andar("ré"); 
-					} 
+						} 
 					}
 
 				} else {
@@ -747,10 +630,10 @@ loop(){
 
 						pulsosTotaisDuranteMedicao = pulsosTotaisDuranteMedicao+pulsos;
 
-						if(primeiraMedicao == 0){
+						if(primeiraMedicao == 0 && funcao != "medicao unica"){
 							/* 
 								Caso ainda seja a medição da primeira dimensão da 
-								sala, o robo deve armazenar o resultado na variável 
+								sala, e não esteja no modo de medição unica, o robo deve armazenar o resultado na variável 
 								primeiraMedicao e reiniciar este processo para que 
 								seja medido a segunda dimensão
 							*/
@@ -782,7 +665,12 @@ loop(){
 									26: Tamanho do carro.
 							*/
 							int resultado = (pulsosTotaisDuranteMedicao- contadorDeCorrecoes)/contadorDeRepeticoes * CMS_POR_PULSO +(2*DISTANCIA_MINIMA_PAREDE) +26;
-							escreverLCD(String(primeiraMedicao) +" cms", String(resultado)+" cms"); //Escreve o resultado final no painel LCD
+							
+							if(funcao == "medicao unica"){
+								escreverLCD("Medicao unica:", String(resultado) +" cms"); //Escreve o resultado final no painel LCD
+							} else {
+								escreverLCD(String(primeiraMedicao) +" cms", String(resultado)+" cms");
+							}
 							delay(5000); // Garante que o resultado fique escrito no painel durante 5 segundos
 							reiniciarEstado(); // Reinicia todas as variáveis do carro
 							primeiraMedicao = 0;
