@@ -326,6 +326,31 @@ int primeiraMedicao; /* Armazena o resultado da medição da primeira dimensão 
 função "Medicao completa" enquanto a segunda está sendo medida.
 */
 
+float
+arredondarMedicaoDeCentimetrosParaMetros(float medicaoEmCms){
+	/*
+		Função destinada à transformar a medição de cms(Baixa precisão) para metros
+	*/
+
+	float medicaoEmMetros = medicaoEmCms/100; // 1m -> 100 cm's
+	float arredondamentoDeMedicao = round(medicaoEmMetros); // Apenas parte inteira da medição (Arredondada, exemplo 1.81m -> 2m)
+
+	float diferencaEntreRealEArredondamento = abs(arredondamentoDeMedicao - medicaoEmMetros);
+
+	/*
+		Se a diferença entre o real e o arredondado for menor ou igual a 6%, arredonda para o metro completo mais próximo, 
+		caso contrário, retorna o valor medido 
+			Ex.:
+				1.97 (Diferença menor que 6%) -> 2m
+				1.58 (Diferença maior que 6%) -> 1.58 
+	*/
+	if(diferencaEntreRealEArredondamento <= 0.06 *medicaoEmMetros){
+		return(arredondamentoDeMedicao);
+	} else {
+		return(medicaoEmMetros);
+	}
+
+}
 
 /*
 ------Variaveis globais------
@@ -385,19 +410,18 @@ setup() {
 
 	
 	// Escrever mensagem inicial do robo dando um "tutorial" de como selecionar os modos: 
-	// escreverLCD("Aperte o botao", "frontal para..."); 
-	// delay(2000);
-	// escreverLCD("variar entre", "as funcoes de...");
-	// delay(2000);
-	// escreverLCD("medicao.");
-	// delay(2000);
+	escreverLCD("Aperte o botao", "frontal para..."); 
+	delay(2000);
+	escreverLCD("selecionar entre", "as funcoes de...");
+	delay(2000);
+	escreverLCD("medicao.");
+	delay(2000);
 
 }
 
 void 
 loop(){
 
-	
 	if(ultimaFuncaoLoop != funcao){ 
 		/* 
 			Se a função atual for diferente da função na ultima chamada do loop, 
@@ -553,10 +577,9 @@ loop(){
 					
 					if(abs(variacaoLateral) > 2 && millis() - momentoDaUltimaCorrecao > 500){ 
 						/* 
-							Se a variacao de distancia lateral for maior que 3cms,
-							menor que 50cms (Para evitar interferencias do sensor
-							de distancia), e já tiver se passado mais que 1segundo
-							e meio desde a ultima correção, uma nova é iniciada.
+							Se a variacao de distancia lateral for maior que 2cms
+							e já tiver se passado mais que meio segundo desde a ultima
+							correção, uma nova é iniciada.
 						*/
 						if(indoParaFrente){
 							frear("frente");
@@ -639,14 +662,16 @@ loop(){
 							*/
 
 							/*
-								resultado = (pulsosTotaisDuranteMedicao- contadorDeCorrecoes)/contadorDeRepeticoes * CMS_POR_PULSO +(2*DISTANCIA_MINIMA_PAREDE) +26;
+								resultado em metros = arredondamento de (pulsosTotaisDuranteMedicao- contadorDeCorrecoes)/contadorDeRepeticoes * CMS_POR_PULSO +(2*DISTANCIA_MINIMA_PAREDE) +26;
 									(pulsosTotaisDuranteMedicao- contadorDeCorrecoes): Quantidade de pulsos desconsiderando os usados para fazer correções.
 									(pulsosTotaisDuranteMedicao- contadorDeCorrecoes)/contadorDeRepeticoes: Média de pulsos por cada repetição da medição feita.
 									2*DISTANCIA_MINIMA_PAREDE: Distancia do primeiro obstáculo + distancia do segundo obstáculo.
 									26: Tamanho do carro.
 							*/
-							primeiraMedicao = (pulsosTotaisDuranteMedicao- (contadorDeCorrecoes * 0.333333))/contadorDeRepeticoes * CMS_POR_PULSO +(2*DISTANCIA_MINIMA_PAREDE) +26;
-							escreverLCD("Aguarde", String(primeiraMedicao) +" cms"); //Escreve o resultado a primeira medição no painel LCD para que o usuario possa acompanhar.
+							int resultadoEmCms = (pulsosTotaisDuranteMedicao- (contadorDeCorrecoes * 0.333333))/contadorDeRepeticoes * CMS_POR_PULSO +(2*DISTANCIA_MINIMA_PAREDE) +26;
+							float primeiraMedicao = arredondarMedicaoDeCentimetrosParaMetros(resultadoEmCms);
+							
+							escreverLCD("Aguarde", String(primeiraMedicao) +"m"); //Escreve o resultado a primeira medição no painel LCD para que o usuario possa acompanhar.
 							delay(2000); // Garante que a mensagem fique no painel LCD durante dois segundos
 							reiniciarEstado(); // Reinicia as variaveis para que o carro volte para a primeira etapa, medindo a segunda dimensão da sala.
 
@@ -658,18 +683,20 @@ loop(){
 							*/
 
 							/*
-								resultado = (pulsosTotaisDuranteMedicao- contadorDeCorrecoes)/contadorDeRepeticoes * CMS_POR_PULSO +(2*DISTANCIA_MINIMA_PAREDE) +26;
+								resultado em metros = arredondamento de (pulsosTotaisDuranteMedicao- contadorDeCorrecoes)/contadorDeRepeticoes * CMS_POR_PULSO +(2*DISTANCIA_MINIMA_PAREDE) +26;
 									(pulsosTotaisDuranteMedicao- contadorDeCorrecoes): Quantidade de pulsos desconsiderando os usados para fazer correções.
 									(pulsosTotaisDuranteMedicao- contadorDeCorrecoes)/contadorDeRepeticoes: Média de pulsos por cada repetição da medição feita.
 									2*DISTANCIA_MINIMA_PAREDE: Distancia do primeiro obstáculo + distancia do segundo obstáculo.
 									26: Tamanho do carro.
 							*/
-							int resultado = (pulsosTotaisDuranteMedicao- contadorDeCorrecoes)/contadorDeRepeticoes * CMS_POR_PULSO +(2*DISTANCIA_MINIMA_PAREDE) +26;
+							int resultadoEmCms = (pulsosTotaisDuranteMedicao- contadorDeCorrecoes)/contadorDeRepeticoes * CMS_POR_PULSO +(2*DISTANCIA_MINIMA_PAREDE) +26;
+							float resultadoEmMetros = arredondarMedicaoDeCentimetrosParaMetros(resultadoEmCms);
 							
 							if(funcao == "medicao unica"){
-								escreverLCD("Medicao unica:", String(resultado) +" cms"); //Escreve o resultado final no painel LCD
+								escreverLCD(String(resultadoEmCms), String(resultadoEmMetros) + "m"); //Escreve o resultado final no painel LCD
+								// escreverLCD("Medicao unica:", String(resultado) +"m"); //Escreve o resultado final no painel LCD
 							} else {
-								escreverLCD(String(primeiraMedicao) +" cms", String(resultado)+" cms");
+								escreverLCD(String(primeiraMedicao) +"m", String(resultadoEmMetros)+"m");
 							}
 							delay(5000); // Garante que o resultado fique escrito no painel durante 5 segundos
 							reiniciarEstado(); // Reinicia todas as variáveis do carro
