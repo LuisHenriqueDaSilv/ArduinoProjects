@@ -1,36 +1,15 @@
 #define countof(a) (sizeof(a) / sizeof(a[0]))
-#include <Arduino.h>
 #include <EEPROM.h>
-#include <WiFi.h>
-#include <WebServer.h>
+#include <WiFiClient.h> 
+#include <ESP8266WebServer.h>
 #include <SPI.h>
 #include <Wire.h>
 #include <RTClib.h>
-#define EEPROM_SIZE 64
-
-#include "soc/soc.h"
-#include "soc/rtc_cntl_reg.h"
-
+// #include <Wire.h>
 
 RTC_DS3231 rtc;
 
-
-/* Put your SSID & Password */
-const char* ssid = "CXR";  // Enter SSID here
-const char* password = "2021mcdl";  //Enter Password here
-
-/* Put IP Address details */
-IPAddress local_ip(192,168,2,1);
-IPAddress gateway(192,168,2,1);
-IPAddress subnet(255,255,255,0);
-
-WebServer server(80);
-
-uint8_t LED1pin = 18;
-boolean LED1status = LOW;
-
-uint8_t LED2pin = 18;
-bool LED2status = LOW;
+#define EEPROM_SIZE 64
 
 //******* EEPROM ********//
 // Endereços reservados na memória
@@ -42,7 +21,7 @@ uint8_t addr3 = 9;   // minutoDesl
 uint8_t addr4 = 10;  // stateRelay
 uint8_t addr5 = 11;  // status_auto
 
-int Relay = 18;                // Pino Utilizado
+int Relay = 8;                // Pino Utilizado
 uint8_t status_gpio = 8;      // Define condição para GPIO
 uint8_t status_auto;          // Define status do botão auto
 boolean stateRelay;           // Estado do pino Relay
@@ -72,7 +51,7 @@ int lido =0;
 int inserido=0;
 
 //Pino do NodeMCU que estara conectado ao rele
-const int pin = 18; //Equivalente ao D2 no NodeMCU
+const int pin = 4; //Equivalente ao D2 no NodeMCU
 
 char datestring[20];
                                     
@@ -80,15 +59,199 @@ bool ledState = false;
 
 int stateLED = LOW;
 
-uint8_t rele = 18;
+uint8_t rele = 23;
+
+/* Put your SSID & Password */
+const char* ssid = "ESP32";  // Enter SSID here
+const char* password = "12345678";  //Enter Password here
+
+/* Put IP Address details */
+IPAddress local_ip(192,168,1,1);
+IPAddress gateway(192,168,1,1);
+IPAddress subnet(255,255,255,0);
+
+ESP8266WebServer server(80);
+
+uint8_t LED1pin = 23;
+boolean LED1status = false;
+
+uint8_t LED2pin = 27;
+bool LED2status = LOW;
 
 char hora[10] = "hh:mm:ss";
 
 int botao_liga=0, botao_desliga=0;
 
+void setup() {
+  Serial.begin(115200);
+
+  if (! rtc.begin()) {
+    Serial.println("Couldn't find RTC");
+    Serial.flush();
+    abort();
+  }
+//  rtc.adjust(DateTime(2021, 1, 21, 3, 0, 0));
+  
+//  rtc.adjust(DateTime(F(_DATE), F(TIME_)));    
+  if (rtc.lostPower()) {
+    Serial.println("RTC lost power, let's set the time!");
+    // When time needs to be set on a new device, or after a power loss, the
+    // following line sets the RTC to the date & time this sketch was compiled
+  //  rtc.adjust(DateTime(F(_DATE), F(TIME_)));
+  //rtc.adjust(DateTime(2021, 1, 21, 3, 0, 0));      
+    // This line sets the RTC with an explicit date & time, for example to set
+    // January 21, 2014 at 3am you would call:
+    // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
+  }
+
+  // When time needs to be re-set on a previously configured device, the
+  // following line sets the RTC to the date & time this sketch was compiled
+  // rtc.adjust(DateTime(F(_DATE), F(TIME_)));
+  // This line sets the RTC with an explicit date & time, for example to set
+  // January 21, 2014 at 3am you would call:
+  // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
+
+    //we don't need the 32K Pin, so disable it
+    rtc.disable32K();
+  
+  pinMode(LED1pin, OUTPUT);
+  pinMode(LED2pin, OUTPUT);
+  pinMode(rele, OUTPUT);  
+
+  WiFi.softAP(ssid, password);
+  WiFi.softAPConfig(local_ip, gateway, subnet);
+  delay(100);
+  
+  server.on("/", handleRoot);
+  server.on("/liga", liga);
+  server.on("/desliga", desliga);
+  server.on("/limpa", limpa);  
+  server.on("/ler", ler);   
+  server.on("/novo", novo);     
+
+  server.on("/setHLu", setHLu);  
+  server.on("/setHLd", setHLd);  
+  server.on("/setMLu", setMLu);  
+  server.on("/setMLd", setMLd);  
+  server.on("/set1MLu", set1MLu);  
+  server.on("/set1MLd", set1MLd);  
+  server.on("/setHDu", setHDu);  
+  server.on("/setHDd", setHDd);  
+  server.on("/setMDu", setMDu);  
+  server.on("/setMDd", setMDd);  
+  server.on("/set1MDu", set1MDu);  
+  server.on("/set1MDd", set1MDd);  
+
+  server.on("/inserir", inserir);      
+  server.on("/cancelar", cancelar);    
+
+  server.on("/salvar", salvar);  
+
+  server.on("/setrHLu", setrHLu);  
+  server.on("/setrHLd", setrHLd);  
+  server.on("/setrMLu", setrMLu);  
+  server.on("/setrMLd", setrMLd);  
+  server.on("/setr1MLu", setr1MLu);  
+  server.on("/setr1MLd", setr1MLd);  
+
+  server.on("/relogio", relogio);    
+  server.on("/salva_relogio", salva_relogio);     
+
+  server.on("/Save_Data", Save_Data);   
+  server.on("/Read_Data", Read_Data);
+
+  
+  server.begin();
+  Serial.println("HTTP server started");
+//  char hora[10] = "hh:mm:ss";
+//  rtc.now().toString(hora);    
+//  Serial.print("Hora: ");
+//  Serial.println(hora);
+  
+
+      
+  //**EEPROM**
+  if (!EEPROM.begin(EEPROM_SIZE))
+  {
+    Serial.println("failed to initialise EEPROM"); 
+    delay(10000);
+  }
+//  delay(250);
+
+ //Read_Data(); 
+ Serial.println("Dados lidos");
+ delay(10000); 
+}
+
+int cont=0;
+
+void loop() {
+//  server.send(200, "text/html", SendHTML(LED1status,true)); 
+//  String str="15:22:00";
+
+  if(cont==0){
+    cont++;
+    Read_Data();    
+  }
+  
+  DateTime now = rtc.now();  
+  int hora = now.hour();
+  int minuto = now.minute();
+  String hora_str;
+  hora_str=(String(hora)+String(minuto)+"00").c_str(); 
+  int hora_atual=atoi(hora_str.c_str());  
+  ligado(hora_atual);
+//  Serial.println(hora_atual);
+  
+  server.handleClient();
+  if(LED1status){
+    digitalWrite(LED1pin, HIGH);
+    digitalWrite(rele, HIGH);  
+  }else{
+    digitalWrite(LED1pin, LOW);
+    digitalWrite(rele, LOW);      
+  }    
+//  server.send(200, "text/html", SendHTML(LED1status,true)); 
+}
+
+void handle_OnConnect() {
+  LED1status = false;
+  LED2status = LOW;
+  Serial.println("GPIO4 Status: OFF | GPIO5 Status: OFF");
+  server.send(200, "text/html", SendHTML(LED1status,LED2status)); 
+}
+
+void handle_led1on() {
+  LED1status = true;
+  Serial.println("GPIO4 Status: ON");
+  server.send(200, "text/html", SendHTML(true,LED2status)); 
+}
+
+void handle_led1off() {
+  LED1status = false;
+  Serial.println("GPIO4 Status: OFF");
+  server.send(200, "text/html", SendHTML(false,LED2status)); 
+}
+
+void handle_led2on() {
+  LED2status = HIGH;
+  Serial.println("GPIO5 Status: ON");
+  server.send(200, "text/html", SendHTML(LED1status,true)); 
+}
+
+void handle_led2off() {
+  LED2status = LOW;
+  Serial.println("GPIO5 Status: OFF");
+  server.send(200, "text/html", SendHTML(LED1status,false)); 
+}
+
+void handle_NotFound(){
+  server.send(404, "text/plain", "Not found");
+}
+
 String SendHTML(uint8_t led1stat,uint8_t led2stat){
-	//Iniciando o buffer que ira conter a pagina HTML que sera enviada para o browser.
-	String buf = "";  
+//Iniciando o buffer que ira conter a pagina HTML que sera enviada para o browser.
+String buf = "";  
   buf = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<!DOCTYPE HTML>\r\n";
   buf = "<html lang=\"port\">";
 
@@ -98,9 +261,9 @@ String SendHTML(uint8_t led1stat,uint8_t led2stat){
 
 
   if (LED1status==true) {
-    buf += "<div class=\"panel-heading\"><font size='6'><font color='blue'><b>LIGADO</b></font></div>";    
+  buf += "LIGADO";
   }else{
-    buf += "<div class=\"panel-heading\"><font size='6'><font color='green'><b>DESLIGADO</b></font></div>";   
+  buf += "DESLIGADO";
   }
   
   buf += "<style>.c{text-align: center;} div,input{padding:10px;font-size:1em;} input{width:100%;} body{text-align: center;font-family:verdana;font-size:1em;}</style>";
@@ -215,43 +378,6 @@ Serial.println("novo_horario2: "+novo_horario);
 //  return server.send(200, "text/html", SendHTML(LED1status,true)); 
 }
 
-void handle_OnConnect() {
-  LED1status = false;
-  LED2status = LOW;
-  Serial.println("GPIO4 Status: OFF | GPIO5 Status: OFF");
-  server.send(200, "text/html", SendHTML(LED1status,LED2status)); 
-}
-
-void handle_led1on() {
-  LED1status = true;
-  Serial.println("GPIO4 Status: ON");
-  server.send(200, "text/html", SendHTML(true,LED2status)); 
-}
-
-void handle_led1off() {
-  LED1status = false;
-  Serial.println("GPIO4 Status: OFF");
-  server.send(200, "text/html", SendHTML(false,LED2status)); 
-}
-
-void handle_led2on() {
-  LED2status = HIGH;
-  Serial.println("GPIO5 Status: ON");
-  server.send(200, "text/html", SendHTML(LED1status,true)); 
-}
-
-void handle_led2off() {
-  LED2status = LOW;
-  Serial.println("GPIO5 Status: OFF");
-  server.send(200, "text/html", SendHTML(LED1status,false)); 
-}
-
-void handle_NotFound(){
-  server.send(404, "text/plain", "Not found");
-}
-
-
-
 
 String SendHTML2(uint8_t led1stat,uint8_t led2stat){
   String ptr = "<!DOCTYPE html> <html>\n";
@@ -326,6 +452,26 @@ void Clear_Data() {
   qtde_de_horarios=0;  
 }
 
+void Read_Data(){
+  qtde_de_horarios = EEPROM.read(addr_inicial);
+  Serial.println("qtde_de_horarios: "+qtde_de_horarios);
+  int x;
+  uint8_t end_ini=addr_inicial;
+  for(x=0;x<qtde_de_horarios;x++){
+    end_ini++; 
+    vet_horaliga[x] = EEPROM.read(end_ini);
+    end_ini++;
+    vet_minutoliga[x] = EEPROM.read(end_ini);
+    end_ini++;    
+    vet_horadesliga[x] = EEPROM.read(end_ini);
+    end_ini++;      
+    vet_minutodesliga[x] = EEPROM.read(end_ini);   
+  }
+  order_data();
+  lido=1;
+  novo_horario=0;   
+}
+
 void order_data(){
 
   int aux_horaliga;
@@ -357,26 +503,6 @@ void order_data(){
     }
   }
 
-}
-
-void Read_Data(){
-  qtde_de_horarios = EEPROM.read(addr_inicial);
-  Serial.println("qtde_de_horarios: "+qtde_de_horarios);
-  int x;
-  uint8_t end_ini=addr_inicial;
-  for(x=0;x<qtde_de_horarios;x++){
-    end_ini++; 
-    vet_horaliga[x] = EEPROM.read(end_ini);
-    end_ini++;
-    vet_minutoliga[x] = EEPROM.read(end_ini);
-    end_ini++;    
-    vet_horadesliga[x] = EEPROM.read(end_ini);
-    end_ini++;      
-    vet_minutodesliga[x] = EEPROM.read(end_ini);   
-  }
-  order_data();
-  lido=1;
-  novo_horario=0;   
 }
 
 void handleRoot() {
@@ -456,15 +582,6 @@ void set1MLd() {
   server.send(200, "text/html", SendHTML(LED1status,true)); 
 }
 
-void save_relogio(int relhoraliga, int relminutoliga) {
-//p  rtc.setTime(relhoraliga, relminutoliga, 0);    //Define o horario
-  rtc.adjust(DateTime(2021, 1, 21, relhoraliga, relminutoliga, 0));
-  novo_relogio = 0;
-  // rtc.setDate(5, 3, 2018);   //Define o dia, mes e ano
-//  server.send(200, "text/html", SendHTML(LED1status,true)); 
-    server.send(200, "text/html", SendHTML(LED1status,true)); 
-}
-
 void salva_relogio()  {
   //novo_horario==1
     save_relogio(relhoraLiga, relminutoLiga);   
@@ -473,6 +590,14 @@ void salva_relogio()  {
     server.send(200, "text/html", SendHTML(LED1status,true)); 
 }
 
+void save_relogio(int relhoraliga, int relminutoliga) {
+//p  rtc.setTime(relhoraliga, relminutoliga, 0);    //Define o horario
+  rtc.adjust(DateTime(2021, 1, 21, relhoraliga, relminutoliga, 0));
+  novo_relogio = 0;
+  // rtc.setDate(5, 3, 2018);   //Define o dia, mes e ano
+//  server.send(200, "text/html", SendHTML(LED1status,true)); 
+    server.send(200, "text/html", SendHTML(LED1status,true)); 
+}
 
 void setHDu() {
     horaDesl++;
@@ -524,7 +649,7 @@ void set1MDd() {
     minutoDesl = minutoDesl - 1;
     if (minutoDesl < 00) {
       minutoDesl = 59;
-    }   
+    }    
   server.send(200, "text/html", SendHTML(LED1status,true)); 
 }
 
@@ -550,7 +675,7 @@ void liga()  {
     lido=1;    
     ledState=false;    
     LED1status = true;
-    server.send(200, "text/html", SendHTML(true,LED1status)); 
+    server.send(200, "text/html", SendHTML(true,LED2status)); 
     botao_liga=1;
     botao_desliga=1;
     digitalWrite(rele, HIGH);     
@@ -562,7 +687,7 @@ void desliga()  {
     novo_horario=0; 
     lido=1;    
     ledState=true;    
-    server.send(200, "text/html", SendHTML(false,LED1status)); 
+    server.send(200, "text/html", SendHTML(false,LED2status)); 
     botao_liga=0;
     botao_desliga=0;
     digitalWrite(rele, LOW);     
@@ -1089,7 +1214,7 @@ boolean ligado(int hora){
       int horaLiga_int = stringToInt(horaLiga);
       //atoi(horas);
       int horaDesliga_int=stringToInt(horaDesliga);
-      if(hora>=horaLiga_int&&hora<horaDesliga_int){
+      if(hora>=horaLiga_int&&hora<=horaDesliga_int){
 //      if(hora>=horaLiga&&hora<=horaDesliga){
 //      Serial.println(hora);
 //     Serial.println(horaLiga);
@@ -1104,147 +1229,4 @@ boolean ligado(int hora){
   LED1status=false;   
  }
  return false;
-}
-
-
-void setup() {
-
-
-  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
-
-  Serial.begin(115200);
-  pinMode(LED1pin, OUTPUT);
-  pinMode(LED2pin, OUTPUT);
-  pinMode(rele, OUTPUT);  
-
-  WiFi.softAP(ssid, password);
-  delay(10000);
-  WiFi.softAPConfig(local_ip, gateway, subnet);
-  delay(10000);
-  
-  //delay(5000);
-
-  if (!rtc.begin()) {
-    Serial.println("Couldn't find RTC");
-    Serial.flush();
-    abort();
-  }
-//  rtc.adjust(DateTime(2021, 1, 21, 3, 0, 0));
-  
-//  rtc.adjust(DateTime(F(_DATE), F(TIME_)));    
-  if (rtc.lostPower()) {
-    Serial.println("RTC lost power, let's set the time!");
-    // When time needs to be set on a new device, or after a power loss, the
-    // following line sets the RTC to the date & time this sketch was compiled
-  //  rtc.adjust(DateTime(F(_DATE), F(TIME_)));
-  //rtc.adjust(DateTime(2021, 1, 21, 3, 0, 0));      
-    // This line sets the RTC with an explicit date & time, for example to set
-    // January 21, 2014 at 3am you would call:
-    // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
-  }
-
-  // When time needs to be re-set on a previously configured device, the
-  // following line sets the RTC to the date & time this sketch was compiled
-  // rtc.adjust(DateTime(F(_DATE), F(TIME_)));
-  // This line sets the RTC with an explicit date & time, for example to set
-  // January 21, 2014 at 3am you would call:
-  // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
-
-    //we don't need the 32K Pin, so disable it
-    rtc.disable32K();
- 
-  
-  server.on("/", handleRoot);
-  server.on("/liga", liga);
-  server.on("/desliga", desliga);
-  server.on("/limpa", limpa);  
-  server.on("/ler", ler);   
-  server.on("/novo", novo);     
-
-  server.on("/setHLu", setHLu);  
-  server.on("/setHLd", setHLd);  
-  server.on("/setMLu", setMLu);  
-  server.on("/setMLd", setMLd);  
-  server.on("/set1MLu", set1MLu);  
-  server.on("/set1MLd", set1MLd);  
-  server.on("/setHDu", setHDu);  
-  server.on("/setHDd", setHDd);  
-  server.on("/setMDu", setMDu);  
-  server.on("/setMDd", setMDd);  
-  server.on("/set1MDu", set1MDu);  
-  server.on("/set1MDd", set1MDd);  
-
-  server.on("/inserir", inserir);      
-  server.on("/cancelar", cancelar);    
-
-  server.on("/salvar", salvar);  
-
-  server.on("/setrHLu", setrHLu);  
-  server.on("/setrHLd", setrHLd);  
-  server.on("/setrMLu", setrMLu);  
-  server.on("/setrMLd", setrMLd);  
-  server.on("/setr1MLu", setr1MLu);  
-  server.on("/setr1MLd", setr1MLd);  
-
-  server.on("/relogio", relogio);    
-  server.on("/salva_relogio", salva_relogio);     
-
-  server.on("/Save_Data", Save_Data);   
-  server.on("/Read_Data", Read_Data);
-
-  
-  server.begin();
-  Serial.println("HTTP server started");
-//  char hora[10] = "hh:mm:ss";
-//  rtc.now().toString(hora);    
-//  Serial.print("Hora: ");
-//  Serial.println(hora);
-  
-
-      
-  //**EEPROM**
-  if (!EEPROM.begin(EEPROM_SIZE))
-  {
-    Serial.println("failed to initialise EEPROM"); 
-    delay(10000);
-  }
-//  delay(250);
-
- //Read_Data(); 
- Serial.println("Dados lidos");
-// delay(10000); 
-}
-
-int cont=0;
-
-void loop() {
-//  server.send(200, "text/html", SendHTML(LED1status,true)); 
-//  String str="15:22:00";
-	Serial.println(WiFi.localIP());
-
-	return;
-
-  if(cont==0){
-    cont++;
-    Read_Data();    
-  }
-  
-  DateTime now = rtc.now();  
-  int hora = now.hour();
-  int minuto = now.minute();
-  String hora_str;
-  hora_str=(String(hora)+String(minuto)+"00").c_str(); 
-  int hora_atual=atoi(hora_str.c_str());  
-  ligado(hora_atual);
-  Serial.println(hora_atual);
-  
-  server.handleClient();
-  if(!LED1status){
-    digitalWrite(LED1pin, HIGH);
-    digitalWrite(rele, HIGH);  
-  }else{
-    digitalWrite(LED1pin, LOW);
-    digitalWrite(rele, LOW);      
-  }    
-//  server.send(200, "text/html", SendHTML(LED1status,true)); 
 }
