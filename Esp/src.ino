@@ -24,7 +24,6 @@ uint8_t LED1pin = 18;
 bool LED1status = LOW;
 
 uint8_t LED2pin = 18;
-bool LED2status = LOW;
 
 char datestring[20];
 int novo_horario=0;
@@ -39,7 +38,9 @@ int qtde_de_horarios=0;
 int lido =0;
 int inserido=0;
 int botao_liga=0, botao_desliga=0;
-bool ledState = false;
+
+bool dispositivoEstaLigado = false;
+
 const int pin = 18; //Equivalente ao D2 no NodeMCU
 uint8_t rele = 18;
 uint8_t addr_inicial = 8;
@@ -50,131 +51,194 @@ int  minutoDesl=0;
 
 
 
-
 String SendHTML(){
-//Iniciando o buffer que ira conter a pagina HTML que sera enviada para o browser.
-	String buf = "";  
-	buf = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<!DOCTYPE HTML>\r\n";
-	buf = "<html lang=\"port\">";
+//Iniciando"; o buffer que ira conter a pagina HTML que sera enviada para o browser.
+  String buf = ""; 
+  buf += "<html lang='pt-BR'>";
+  buf += "  <head>";
+  buf += "      <meta charset='UTF-8'>";
+  buf += "      <meta http-equiv='X-UA-Compatible' content='IE=edge'>";
+  buf += "      <meta name='viewport' content='width=device-width, initial-scale=1.0'>";
+  buf += "      <title>Dispositivo remoto</title>";
+  buf += "      <link rel='preconnect' href='https://fonts.googleapis.com'>";
+  buf += "      <link rel='preconnect' href='https://fonts.gstatic.com' crossorigin>";
+  buf += "      <link href='https://fonts.googleapis.com/css2?family=Inter:wght@200;500;600;700&display=swap' rel='stylesheet'>";
+  buf += "  </head>";
+  buf += "  <style>";
+  buf += "      * {";
+  buf += "          box-sizing: border-box;";
+  buf += "          margin: 0;";
+  buf += "          padding: 0;";
+  buf += "          font-family: 'Inter', sans-serif;";
+  buf += "          text-align: center;";
+  buf += "          color: #403937;";
+  buf += "      }";
+  buf += "      :root {";
+  buf += "          font-size: 62.5%;";
+  buf += "      }";
+  buf += "      body {";
+  buf += "          width: 100vw;";
+  buf += "          height: 100vh;";
+  buf += "          background: linear-gradient(107.56deg, #5D5F28 0%, rgba(32, 90, 38, 0.557143) 32.29%, rgba(26, 87, 32, 0.264286) 53.65%, rgba(30, 30, 30, 0) 100%);";
+  buf += "          background-color: #1E1E1E;";
+  buf += "          font-size: 1.6rem;";
+  buf += "      }";
+  buf += "      .wrapper {";
+  buf += "          display: flex;";
+  buf += "          height: 100vh;";
+  buf += "          width: 100vw;";
+  buf += "          align-items: center;";
+  buf += "          justify-content: center;";
+  buf += "      }";
+  buf += "      .app {";
+  buf += "          width: 90vw;";
+  buf += "          height: fit-content;";
+  buf += "          padding: 2rem;";
+  buf += "          background-color: #D9D9D9;";
+  buf += "          border-radius: 10px;";
+  buf += "          display: flex;";
+  buf += "          align-items: center;";
+  buf += "          flex-direction: column;";
+  buf += "          gap: 4rem;";
+  buf += "      }";
+  buf += "      a:hover{";
+  buf += "          transform: scale(1.02);";
+  buf += "          opacity: 0.7;";
+  buf += "      }";
+  buf += "      a {";
+  buf += "          color: #ffffff;";
+  buf += "          margin-top: 1rem;";
+  buf += "          border: none;";
+  buf += "          cursor: pointer;";
+  buf += "          transition: 200ms;";
+  buf += "          font-size: 2.5rem;";
+  buf += "          font-weight: 700;";
+  buf += "          border-radius: 10px;";
+  buf += "          padding: 1rem;";
+  buf += "          text-decoration: none;";
+  buf += "      }";
+  buf += "      .status {";
+  buf += "          font-weight: 700;";
+  buf += "          -webkit-text-stroke: 1px #403937;";
+  buf += "      }";
+  buf += "      .header {";
+  buf += "          display: flex;";
+  buf += "          flex-direction: column;";
+  buf += "          justify-content: space-between;";
+  buf += "          max-width: 97.4rem;";
+  buf += "      }";
+  buf += "      #desligado {";
+  buf += "          color: #D45C5C;";
+  buf += "      }";
+  buf += "      #botaodesligado {";
+  buf += "          background-color: #8AC880;";
+  buf += "      }";
+  buf += "      #ligado {";
+  buf += "          color: #8AC880;";
+  buf += "      }";
+  buf += "      #botaoligado {";
+  buf += "          background-color: #D45C5C;";
+  buf += "      }";
+
+  buf += "      .horario-atual {";
+  buf += "          display: flex;";
+  buf += "          justify-content: center;";
+  buf += "          gap: 1rem;";
+  buf += "          flex-direction: row;";
+  buf += "          margin-top: 1rem;";
+  buf += "      }";
+  buf += "      .horario-atual div {";
+  buf += "          display: flex;";
+  buf += "          justify-content: center;";
+  buf += "          align-items: center;";
+  buf += "          background-color: #CDCDCD;";
+  buf += "          height: 7rem;";
+  buf += "          width: 7rem;";
+  buf += "          border-radius: 10px;";
+  buf += "          font-size: 4rem;";
+  buf += "          font-weight: 500;";
+  buf += "      }";
+  buf += "      .separador-de-hora {";
+  buf += "          font-size: 4rem;";
+  buf += "          align-self: center;";
+  buf += "      }";
 
 
-	buf += "<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=yes\"/>\r\n";
-	buf =+ "<meta http-equiv=\"refresh\" content=\"10\">";
-	buf += "<title>Dispositivo</title>";
 
+  buf += "      @media (min-width: 952px) {";
+  buf += "          .header {";
+  buf += "              flex-direction: row;";
+  buf += "          }";
+  buf += "      }";
+  buf += "  </style>";
+  buf += "  <body>";
+  buf += "      <div class='wrapper'>";
+  buf += "          <div class='app'>";
+  buf += "              <header class='header'>";
+  buf += "                  <div>";
 
-  	if (LED1status==true) {
-		buf += "<div class=\"panel-heading\"><font size='6'><font color='blue'><b>LIGADO</b></font></div>";    
-  	}else{
-    	buf += "<div class=\"panel-heading\"><font size='6'><font color='green'><b>DESLIGADO</b></font></div>";   
-	}
+  if(dispositivoEstaLigado){
+    buf += "                      <h1>O dispositivo está <strong class='status' id='ligado'>LIGADO</strong> </h1>";
+    buf += "                      <p id='headerp'>E permanecera assim até o horario configurado para desligar ou o usuario desligar manualmente.</p>";
+  } else {
+    buf += "                      <h1>O dispositivo está <strong class='status' id='desligado'>Desligado</strong> </h1>";
+    buf += "                      <p id='headerp'>E permanecera assim até o horario configurado para ligar ou o usuario ligar manualmente.</p>";
+  }
+
+  buf += "                  </div>";
+
+  if(dispositivoEstaLigado){
+    buf += "                  <a href='/desliga' id='botaoligado'>";
+    buf += "                      desligar manualmente";
+    buf += "                  </a>";
+  }else {
+    buf += "                  <a href='/liga' id='botaodesligado'>";
+    buf += "                      ligar manualmente";
+    buf += "                  </a>";
+  }
+  buf += "              </header>";
+
+	// char date[10] = "hh:mm:ss";
+	char hora[10] = "hh";
+	char minuto[10] = "mm";
+	char segundos[10] = "ss";
+	rtc.now().toString(hora);
+	rtc.now().toString(minuto);
+	rtc.now().toString(segundos);
+
+  buf += "                <div>";
+  buf += "                    <h1>horario atual:</h1>";
+  buf += "                    <div class='horario-atual'>";
+  buf += "                        <div id='hora-atual'>";
+  buf += hora;
+  buf += "                        </div> <label class='separador-de-hora'>:</label>";
+
+  buf += "                        <div id='minuto-atual'>";
+  buf += minuto;
+  buf += "                        </div>";
+  buf += "                    </div>";
+  buf += "                </div>";
+
+  buf += "          </div>";
+  buf += "      </div>";
   
-	buf += "<style>.c{text-align: center;} div,input{padding:10px;font-size:1em;} input{width:100%;} body{text-align: center;font-family:verdana;font-size:1em;}</style>";
-	buf += "</head>";
+  buf += "  </body>";
+  buf += "  <script>";
+  buf += "    setInterval(async() => {\n";
+  buf += "      const respostaHoraAtual = await fetch('/relogio')\n";
+  buf += "      const response = await respostaHoraAtual.json()\n";
 
-	//  buf += "<body onload='startTime()'><div class=\"panel panel-primary\">";
-	buf += "<div class=\"panel-heading\"><font size='6'><b>Dispositivo Remoto</b></font></div>";
-	buf += "<div class=\"panel-body\">";
-	buf += "<div id=\"txt\" style=\"font-weight:bold;\"></div>";
-	buf += "</p><div class='container'>";
-	buf += "<h4>";
-	buf += datestring;
-	buf += "</h4>";
+  buf += "      console.log(response)\n";
 
 
-	buf += "<div class='btn-group'>";
-	buf += "<a href=\"liga\"><button type='button' class='btn btn-info' style='margin: 3px'><b><font color='blue'>LIGAR AGORA</b></button></a>";
-	buf += "<a href=\"desliga\"><button type='button' class='btn btn-info' style='margin: 3px'><b><font color='green'>DESLIGAR AGORA</b></button></a><br>";
-	buf += "<a href=\"limpa\"><button type='button' class='btn btn-info' style='margin: 3px'><b><font color='red'>LIMPAR MEM</button></a>";
-	buf += "<a href=\"ler\"><button type='button' class='btn btn-info' style='margin: 3px'><b><font color='red'>LER MEM</b></button></a>";
+  buf += "      const visorHora = window.document.getElementById('hora-atual')\n";
+  buf += "      const visorMinuto = window.document.getElementById('minuto-atual')\n";
 
-
-  	if (novo_horario == 0) {
-    	buf += "<a href=\"novo\"><button type='button' class='btn btn-info' style='margin: 3px'><b><font color='blue'>NOVO HOR&AacuteRIO</b><font color='black'></button></a>";
-  	}
-	buf += "</div> ";
-	buf += "<a href=\"relogio\"><button type='button' class='btn btn-info' style='margin: 3px'><b><font color='black'>Atualizar Rel&oacute;gio</b></button></a>";
-
-	char date[10] = "hh:mm:ss";
-	rtc.now().toString(date);
-
-
-	buf += date;
-	buf += " * ";
-
-  	if (novo_relogio == 1) {
-		buf += "<div class='btn-group'>";
-		buf += "<p>Rel&oacute;gio: <span class=\"label label-success\">";
-		buf += "<font size='4' color='blue'><b>";
-		buf += String(relhoraLiga);
-		buf += " : ";
-		buf += String(relminutoLiga);
-		buf += "</b></font>";
-		buf += "<a href=\"setrHLu\"><button type='button' class='btn btn-info' style='margin: 3px'>+1 h</button></a>";
-		buf += "<a href=\"setrHLd\"><button type='button' class='btn btn-info' style='margin: 3px'>-1 h</button></a>";
-		buf += "<a href=\"setrMLu\"><button type='button' class='btn btn-info' style='margin: 3px'>+5 m</button></a>";
-		buf += "<a href=\"setrMLd\"><button type='button' class='btn btn-info' style='margin: 3px'>-5 m</button></a>";
-		buf += "<a href=\"setr1MLu\"><button type='button' class='btn btn-info' style='margin: 3px'>+1 m</button></a>";
-		buf += "<a href=\"setr1MLd\"><button type='button' class='btn btn-info' style='margin: 3px'>-1 m</button></a>";
-		buf += "<a href=\"salva_relogio\"><button type='button' class='btn btn-info' style='margin: 3px'><b><font color='green'>Salvar</b><font color='black'></button></a>";
-		buf += "<a href=\"cancelar\"><button type='button' class='btn btn-info' style='margin: 3px'><b><font color='red'>Cancelar</b><font color='black'></button></a>";
-		buf += "</div> ";
-  	}
-  
-	Serial.println("novo_horario1: "+novo_horario);
-
-	if (novo_horario == 1) {
-		Serial.println("novo_horario2: "+novo_horario);    
-		buf += "<div class='btn-group'><p align='center'><font color='green'><b><p>Rel&oacute;gio liga: </b><font color='black'><span class=\'label label-success\'>";
-		buf += "<font size='4' color='blue'><b>";
-		buf += String(relhoraLiga);
-		buf += " : ";
-		buf += String(relminutoLiga);
-		buf += "</b></font>";
-		buf += "<a href=\"setHLu\"><button type='button' class='btn btn-info' style='margin: 3px'>+1 h</button></a>";
-		buf += "<a href=\"setHLd\"><button type='button' class='btn btn-info' style='margin: 3px'>-1 h</button></a>";
-		buf += "<a href=\"setMLu\"><button type='button' class='btn btn-info' style='margin: 3px'>+5 m</button></a>";
-		buf += "<a href=\"setMLd\"><button type='button' class='btn btn-info' style='margin: 3px'>-5 m</button></a>";
-		buf += "<a href=\"set1MLu\"><button type='button' class='btn btn-info' style='margin: 3px'>+1 m</button></a>";
-		buf += "<a href=\"set1MLd\"><button type='button' class='btn btn-info' style='margin: 3px'>-1 m</button></a>";
-		buf += "</div> ";
-		buf += "<div class='btn-group'><font color='red'><b><p>Rel&oacute;gio desliga: </b><font color='black'><span class=\'label label-success\'>";
-		buf += "<font size='4' color='blue'><b>";
-		buf += String(horaDesl);
-		buf += " : ";
-		buf += String(minutoDesl);
-		buf += "</b></font>";
-		buf += "<a href=\"setHDu\"><button type='button' class='btn btn-info' style='margin: 3px'>+1 h</button></a>";
-		buf += "<a href=\"setHDd\"><button type='button' class='btn btn-info' style='margin: 3px'>-1 h</button></a>";
-		buf += "<a href=\"setMDu\"><button type='button' class='btn btn-info' style='margin: 3px'>+5 m</button></a>";
-		buf += "<a href=\"setMDd\"><button type='button' class='btn btn-info' style='margin: 3px'>-5 m</button></a>";
-		buf += "<a href=\"set1MDu\"><button type='button' class='btn btn-info' style='margin: 3px'>+1 m</button></a>";
-		buf += "<a href=\"set1MDd\"><button type='button' class='btn btn-info' style='margin: 3px'>-1 m</button></a><br>";
-		buf += "<a href=\"inserir\"><button type='button' class='btn btn-info' style='margin: 3px'><b><font color='green'>Salvar</b><font color='black'></button></a>";
-		buf += "<a href=\"cancelar\"><button type='button' class='btn btn-info' style='margin: 3px'><b><font color='red'>Cancelar</b><font color='black'></button></a>";    
-		buf += "</div>";//container
-	}
-	if (lido == 1 && qtde_de_horarios > 0) {
-		buf += "<p>HOR&AacuteRIOS";
-		buf += "<table border='1' align='center'>";
-		buf += "<tr> <th><font color='blue'>  LIGADO   </font></th><th><font color='red'> DESLIGADO </font></th> </tr>";
-		int x;
-		for (x = 0; x < qtde_de_horarios; x++) {
-			buf += "<tr> <td align='center'><font color='blue'>" + String(vet_horaliga[x]);
-			buf += ":" + String(vet_minutoliga[x]);
-			buf += "</td> <td align='center'></font><font color='red'>" + String(vet_horadesliga[x]);
-			buf += ":" + String(vet_minutodesliga[x]);
-			buf += "</td> </tr></font>";
-		}
-		buf += "</table>";
-		buf += "</p>";
-		if (inserido == 1) {
-			buf += "<a href=\"salvar\"><button type='button' class='btn btn-info' style='margin: 5px'>Salvar</button></a>";
-		}
-	}
-  buf += "</div> ";
-  buf += "</body>";
-  buf += "</html>\n";
+  buf += "      visorHora.innerHTML = response.hora\n";
+  buf += "      visorMinuto.innerHTML = response.minuto\n";
+  buf += "    }, 15000)";
+  buf += "  </script>";
+  buf += "</html>";
 
   return buf;
 }
@@ -212,7 +276,7 @@ void liga()  {
     digitalWrite(pin, LOW);
     novo_horario=0;   
     lido=1;    
-    ledState=false;    
+    dispositivoEstaLigado=true;    
     LED1status = true;
     server.send(200, "text/html", SendHTML()); 
     botao_liga=1;
@@ -224,7 +288,7 @@ void desliga()  {
     LED1status = false;
     novo_horario=0; 
     lido=1;    
-    ledState=true;    
+    dispositivoEstaLigado=false;    
     server.send(200, "text/html", SendHTML()); 
     botao_liga=0;
     botao_desliga=0;
@@ -351,6 +415,7 @@ void setr1MLd() {
 } 
 
 void relogio()  {
+
 /*    char horaRel[5];
     char horas[10] = "hh:mm:ss";
     rtc.now().toString(horas);    
@@ -360,9 +425,17 @@ void relogio()  {
     strcpy(horas,string_substring(horas, 3, 2));
     relminutoLiga=atoi(horas); 
 */    
-    novo_relogio=1;
+    // novo_relogio=1;
 //    server.send(200, "text/html", SendHTML(LED1status,true)); 
-    server.send(200, "text/html", SendHTML()); 
+
+    char horas[10] = "hh";
+    char minutos[10] = "mm";
+    rtc.now().toString(horas);   
+    rtc.now().toString(minutos);   
+
+    String buf = "{ \"hora\" : \""+ String(horas) + "\", \"minuto\" : \""+String(minutos)+"\" }";
+
+    server.send(200, "text/json", buf); 
 } 
 
 void save_relogio(int relhoraliga, int relminutoliga) {
@@ -645,10 +718,10 @@ void setup() {
 			Serial.println("DS3231 não encontrado");
 		};
 	}
-	if(rtc.lostPower()){ //SE RTC FOI LIGADO PELA PRIMEIRA VEZ / FICOU SEM ENERGIA / ESGOTOU A BATERIA, FAZ
-		Serial.println("DS3231 OK!"); //IMPRIME O TEXTO NO MONITOR SERIAL
-		rtc.adjust(DateTime(F(__DATE__), F(__TIME__))); //CAPTURA A DATA E HORA EM QUE O SKETCH É COMPILADO
-		//rtc.adjust(DateTime(2018, 9, 29, 15, 00, 45)); //(ANO), (MÊS), (DIA), (HORA), (MINUTOS), (SEGUNDOS)
+	if(rtc.lostPower()){
+		Serial.println("DS3231 OK!");
+		// rtc.adjust(DateTime(F(__DATE__), F(__TIME__))); //CAPTURA A DATA E HORA EM QUE O SKETCH É COMPILADO
+		rtc.adjust(DateTime(2023, 5, 06, 15, 00, 00)); //(ANO), (MÊS), (DIA), (HORA), (MINUTOS), (SEGUNDOS)
 	}
 
     Serial.println(WiFi.localIP());
@@ -688,6 +761,6 @@ void loop(){
 		digitalWrite(LED1pin, LOW);
 		digitalWrite(rele, LOW);
 	}
-	server.send(200, "text/html", SendHTML()); 
+	// server.send(200, "text/html", SendHTML()); 
 
 }
