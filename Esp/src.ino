@@ -7,11 +7,13 @@
 // #include <Wire.h>
 #define EEPROM_SIZE 64
 
-
 RTC_DS3231 rtc;
 
-const char* ssid = "CXR";  // Enter SSID here
-const char* password = "2021mcdl";  //Enter Password here
+// const char* ssid = "CXR";  // Enter SSID here
+// const char* password = "2021mcdl";  //Enter Password here
+
+const char* ssid     = "sistema_de_irrigacao";
+const char* password = "123456789";
 
 IPAddress local_ip(192,168,1,1);
 IPAddress gateway(192,168,1,1);
@@ -20,31 +22,18 @@ IPAddress subnet(255,255,255,0);
 WebServer server(80);
 
 
-uint8_t LED1pin = 18;
-bool LED1status = LOW;
-
-uint8_t LED2pin = 18;
-
-int novo_horario=0;
-int novo_relogio=0;
-int relhoraLiga=0;
-int relminutoLiga=0;
-int qtde_de_horarios=0;
-int lido =0;
-int inserido=0;
-int botao_liga=0, botao_desliga=0;
-
-bool temHorarioConfigurado = false;
 bool dispositivoEstaLigado = false;
+bool dispositivoFoiLigadoManualmente = false;
+bool dispositivoFoiDesativadoManualmente = false;
 
-int horaLiga = 0;
-int minutoLiga = 0;
-int horaDesliga = 0;
-int minutoDesliga = 0;
+String horariosParaLigarEDesligar = "";
+int quantidadeDeHorariosConfigurados = 0;
+
+bool error = false;
+String mensagemdeErro = "";
 
 
-const int pin = 18; //Equivalente ao D2 no NodeMCU
-uint8_t rele = 18;
+const int portaDoDispositivo = 18; //Equivalente ao D2 no NodeMCU
 uint8_t addr_inicial = 8;
 int  horaDesl=0;
 int  minutoDesl=0;
@@ -63,10 +52,7 @@ void escreverValorInteiroNaEEPROM(int endereco1, int endereco2, int valor){
     EEPROM.write(endereco1, primeiroCaractereDoValor);
     EEPROM.write(endereco2, segundoCaractereDoValor);
   }
-
-  delay(1000);
   EEPROM.end();    
-
 
 }
 
@@ -119,17 +105,15 @@ String SendHTML(){
   buf += "          background: linear-gradient(107.56deg, #5D5F28 0%, rgba(32, 90, 38, 0.557143) 32.29%, rgba(26, 87, 32, 0.264286) 53.65%, rgba(30, 30, 30, 0) 100%);";
   buf += "          background-color: #1E1E1E;";
   buf += "          font-size: 1.6rem;";
+  buf += "          overflow-x: hidden;";
   buf += "      }";
   buf += "      .wrapper {";
   buf += "          display: flex;";
-  buf += "          height: 100vh;";
-  buf += "          width: 100vw;";
   buf += "          align-items: center;";
   buf += "          justify-content: center;";
   buf += "      }";
   buf += "      .app {";
   buf += "          width: 90vw;";
-  buf += "          margin: 4rem;";
   buf += "          height: fit-content;";
   buf += "          padding: 4rem;";
   buf += "          background-color: #D9D9D9;";
@@ -183,14 +167,14 @@ String SendHTML(){
   buf += "          background-color: #D45C5C;";
   buf += "      }";
 
-  buf += "      .horario {";
+  buf += "      .horario-relogio {";
   buf += "          display: flex;";
   buf += "          justify-content: center;";
   buf += "          gap: 1rem;";
   buf += "          flex-direction: row;";
   buf += "          margin-top: 1rem;";
   buf += "      }";
-  buf += "      .horario div {";
+  buf += "      .horario-relogio div {";
   buf += "          display: flex;";
   buf += "          justify-content: center;";
   buf += "          align-items: center;";
@@ -206,12 +190,6 @@ String SendHTML(){
   buf += "          font-size: 4rem;";
   buf += "          align-self: center;";
   buf += "      }";
-  buf += "        #ligar {";
-  buf += "            color: #8AC880;";
-  buf += "        }";
-  buf += "        #desligar {";
-  buf += "            color: #B55454;";
-  buf += "        }";
   buf += "        .footer-horarios {";
   buf += "            display: flex;";
   buf += "            flex-direction: column;";
@@ -226,6 +204,23 @@ String SendHTML(){
   buf += "              flex-direction: row;";
   buf += "          }";
   buf += "      }";
+  buf += "      .horario {";
+  buf += "        display: flex;";
+  buf += "        align-items: center;";
+  buf += "        gap: 0.5rem;";
+  buf += "      }";
+  buf += "       .container-de-horarios {";
+  buf += "          display: flex;";
+  buf += "          flex-direction: column;";
+  buf += "          align-items: center;";
+  buf += "          width: 100%;";
+  buf += "      }";
+  buf += "      @media (max-width: 952px) {";
+  buf += "          .app {";
+  buf += "              width: 100vw;";
+  buf += "          }";
+  buf += "      }";
+
   buf += "  </style>";
   buf += "  <body>";
   buf += "      <div class='wrapper'>";
@@ -244,51 +239,58 @@ String SendHTML(){
   buf += "                  </div>";
 
   if(dispositivoEstaLigado){
-    buf += "                  <a href='/desliga' id='botaoligado'>";
+    buf += "                  <a href='/desligar-manualmente' id='botaoligado'>";
     buf += "                      desligar manualmente";
     buf += "                  </a>";
   }else {
-    buf += "                  <a href='/liga' id='botaodesligado'>";
+    buf += "                  <a href='/ligar-manualmente' id='botaodesligado'>";
     buf += "                      ligar manualmente";
     buf += "                  </a>";
   }
   buf += "              </header>";
 
   buf += "                <div>";
-  if(temHorarioConfigurado){
-    buf += "                    <div>";
-    buf += "                        <h1>O sistema esta configurado para <span id='ligar'>ligar</span></h1>";
-    buf += "                        <div class='horario'>";
-    buf += "                            <div>";
-    buf += horaLiga;
-    buf += "                            </div><label class='separador-de-hora'>:</label>";
-    buf += "                            <div>";
-    buf += minutoLiga;
-    buf += "                          </div>";
-    buf += "                        </div>";
+  if(quantidadeDeHorariosConfigurados >= 1){
+    buf += "                <div>";
+    buf += "                    <h1>O sistema esta configurado para ficar ligado nos seguintes horarios:</h1>";
+    buf += "                    <div class='container-de-horarios'>";
+    for(int i = 0; i < quantidadeDeHorariosConfigurados; i = i + 1){
+
+      int horaLiga = atoi(horariosParaLigarEDesligar.substring(i*8, i*8+2).c_str());
+      int minutoLiga = atoi(horariosParaLigarEDesligar.substring(i*8+2, i*8+4).c_str());
+      int horaDesliga = atoi(horariosParaLigarEDesligar.substring(i*8+4, i*8+6).c_str());
+      int minutoDesliga = atoi(horariosParaLigarEDesligar.substring(i*8+6, i*8+8).c_str());
+
+      buf += "                        <div class='horario'>";
+      buf += "                            <div class='horario-relogio'>";
+      buf += "                              <div>";
+      buf += horaLiga;
+      buf += "                              </div><label class='separador-de-hora'>:</label>";
+      buf += "                                <div>";
+      buf += minutoLiga;
+      buf += "                                </div>";
+      buf += "                            </div>";
+      buf += "                            <h1> até </h1>";
+      buf += "                            <div class='horario-relogio'>";
+      buf += "                                <div>";
+      buf += horaDesliga;
+      buf += "                                </div><label class='separador-de-hora'>:</label>";
+      buf += "                                <div>";
+      buf += minutoDesliga;
+      buf += "                                </div>";
+      buf += "                            </div>";
+      buf += "                        </div>";
+    }
+
     buf += "                    </div>";
-    buf += "                    <div>";
-    buf += "                        <h1>e <span id='desligar'>desligar</span></h1>";
-    buf += "                        <div class='horario'>";
-    buf += "                            <div>";
-    buf += horaDesliga;
-    buf += "                        </div><label class='separador-de-hora'>:</label>";
-    buf += "                            <div>";
-    buf += minutoDesliga;
-    buf += "              </div>";
-    buf += "                        </div>";
-    buf += "                    </div>";
+    buf += "                </div>";
   } else {
     buf += "<h1>Você não configurou um horario para <span id='ligar'>ligar</span> ou <span id='desligar'>desligar</span></h1>";
   }
-
   buf += "                    <div class='footer-horarios'>";
-
-  if(temHorarioConfigurado){
-    buf += "                        <a href='/configurar-horario'>editar horario</a>";
-    buf += "                        <a href='/limpa'>apagar horario</a>";
-  } else {
-    buf += "                        <a href='/configurar-horario'>configurar horario</a>";
+  buf += "                        <a href='/configurar-horario'>adicionar horario</a>";
+  if(quantidadeDeHorariosConfigurados >= 1){
+    buf += "                        <a href='/limpar-horarios'>apagar horarios</a>";
   }
   buf += "                    </div>";
 
@@ -306,7 +308,7 @@ String SendHTML(){
 
   buf += "                <div>";
   buf += "                    <h1>horario atual:</h1>";
-  buf += "                    <div class='horario'>";
+  buf += "                    <div class='horario-relogio'>";
   buf += "                        <div id='hora-atual'>";
   buf += hora;
   buf += "                        </div> <label class='separador-de-hora'>:</label>";
@@ -323,19 +325,43 @@ String SendHTML(){
   
   buf += "  </body>";
   buf += "  <script>";
+  if(error){
+    error = false;
+    buf += "alert('";
+    buf += mensagemdeErro;
+    buf += "')\n";
+  }
   buf += "    setInterval(async() => {\n";
   buf += "      const respostaHoraAtual = await fetch('/relogio')\n";
-  buf += "      const response = await respostaHoraAtual.json()\n";
-
-  buf += "      console.log(response)\n";
-
+  buf += "      const respostaStatus = await fetch('/status')\n";
+  buf += "      const datahoraAtual = await respostaHoraAtual.json()\n";
+  buf += "      const dataStatus = await respostaStatus.json()\n";
 
   buf += "      const visorHora = window.document.getElementById('hora-atual')\n";
   buf += "      const visorMinuto = window.document.getElementById('minuto-atual')\n";
 
-  buf += "      visorHora.innerHTML = response.hora\n";
-  buf += "      visorMinuto.innerHTML = response.minuto\n";
-  buf += "    }, 15000)";
+  buf += "      if(dataStatus.status == 0){\n";
+  buf += "        const visorStatus = window.document.getElementById('ligado')\n";
+  buf += "        const botaoLigado = window.document.getElementById('botaoligado')\n";
+  buf += "        visorStatus.innerHTML = 'desligado'\n";
+  buf += "        visorStatus.id = 'desligado'\n";
+  buf += "        botaoLigado.innerHTML = 'ligar manualmente'\n";
+  buf += "        botaoLigado.id = 'botaodesligado'\n";
+  buf += "        botaoLigado.href = '/ligar-manualmente'\n";
+  buf += "      } else {\n";
+
+  buf += "        const visorStatus = window.document.getElementById('desligado')\n";
+  buf += "        const botaoDesligado = window.document.getElementById('botaodesligado')\n";
+  buf += "        visorStatus.innerHTML = 'ligado'\n";
+  buf += "        visorStatus.id = 'ligado'\n";
+  buf += "        botaoDesligado.innerHTML = 'desligar manualmente'\n";
+  buf += "        botaoDesligado.id = 'botaoligado'\n";
+  buf += "        botaoDesligado.href = '/desligar-manualmente'\n";
+  buf += "      }\n";
+
+  buf += "      visorHora.innerHTML = datahoraAtual.hora\n";
+  buf += "      visorMinuto.innerHTML = datahoraAtual.minuto\n";
+  buf += "    }, 5000)";
   buf += "  </script>";
   buf += "</html>";
 
@@ -376,14 +402,11 @@ String SendHTMLConfigurarRelogio(){
   buf += "    }";
   buf += "    .wrapper {";
   buf += "        display: flex;";
-  buf += "        height: 100vh;";
-  buf += "        width: 100vw;";
   buf += "        align-items: center;";
   buf += "        justify-content: center;";
   buf += "    }";
   buf += "    .app {";
   buf += "        width: 90vw;";
-  buf += "        margin: 4rem;";
   buf += "        height: fit-content;";
   buf += "        padding: 2rem;";
   buf += "        background-color: #D9D9D9;";
@@ -455,6 +478,11 @@ String SendHTMLConfigurarRelogio(){
   buf += "        border-radius: 0 10px 10px 0;";
   buf += "        background-color: #B2433B;";
   buf += "    }";
+  buf += "    @media (max-width: 952px) {";
+  buf += "        .app {";
+  buf += "            width: 100vw;";
+  buf += "        }";
+  buf += "    }";
   buf += "</style>";
   buf += "<body>";
   buf += "    <div class='wrapper'>";
@@ -486,6 +514,12 @@ String SendHTMLConfigurarRelogio(){
   buf += "    </div>";
   buf += "</body>";
   buf += "<script>";
+  if(error){
+    error = false;
+    buf += "alert('";
+    buf += mensagemdeErro;
+    buf += "')\n";
+  }
   buf += "  let horas = 0\n";
   buf += "  let minutos = 0\n";
   buf += "  function atualizarDisplay() {\n";
@@ -560,14 +594,11 @@ String SendHTMLConfigurarHorario(){
   buf += "    }";
   buf += "    .wrapper {";
   buf += "        display: flex;";
-  buf += "        height: 100vh;";
-  buf += "        width: 100vw;";
   buf += "        align-items: center;";
   buf += "        justify-content: center;";
   buf += "    }";
   buf += "    .app {";
   buf += "        width: 90vw;";
-  buf += "        margin: 4rem;";
   buf += "        height: fit-content;";
   buf += "        padding: 2rem;";
   buf += "        background-color: #D9D9D9;";
@@ -658,6 +689,11 @@ String SendHTMLConfigurarHorario(){
   buf += "        flex-direction: column;";
   buf += "        gap: 2.1rem;";
   buf += "    }";
+  buf += "    @media (max-width: 952px) {";
+  buf += "        .app {";
+  buf += "            width: 100vw;";
+  buf += "        }";
+  buf += "    }";
   buf += "</style>";
   buf += "<body>";
   buf += "    <div class='wrapper'>";
@@ -714,6 +750,12 @@ String SendHTMLConfigurarHorario(){
   buf += "    </div>";
   buf += "</body>";
   buf += "<script>";
+  if(error){
+    error = false;
+    buf += "alert('";
+    buf += mensagemdeErro;
+    buf += "')\n";
+  }
   buf += "    let horasLiga = 0\n";
   buf += "    let minutosLiga = 0\n";
   buf += "    function atualizarDisplayLiga() {\n";
@@ -774,7 +816,7 @@ String SendHTMLConfigurarHorario(){
   buf += "        window.location.replace('/')\n";
   buf += "    }\n";
   buf += "    function confirmar() {\n";
-  buf += "        window.location.replace(`/configurar-horario-liga-e-desliga?horaliga=${horasLiga}&minutoliga=${minutosLiga}&horaDesliga=${horasDesliga}&minutoDesliga=${minutosDesliga}`)\n";
+  buf += "        window.location.replace(`/adicionar-horario?horaliga=${horasLiga}&minutoliga=${minutosLiga}&horaDesliga=${horasDesliga}&minutoDesliga=${minutosDesliga}`)\n";
   buf += "    }\n";
   buf += "</script>";
   buf += "</html>";
@@ -783,33 +825,143 @@ String SendHTMLConfigurarHorario(){
 
 }
 
-void lerHorariosDaMemoria(){
-  horaLiga = lerValorInteiroDaEEPROM(0, 1);
-  minutoLiga = lerValorInteiroDaEEPROM(2, 3);
-  horaDesliga = lerValorInteiroDaEEPROM(4, 5);
-  minutoDesliga = lerValorInteiroDaEEPROM(6, 7);
-
-  if(minutoDesliga <= 0){
-    temHorarioConfigurado = false;
+String numeroComDoisDigitos(int valor){
+  if(valor<10){
+    return "0"+String(valor);
   } else {
-    temHorarioConfigurado = true;
+    return String(valor);
   }
+
+}
+void lerHorariosDaMemoria(){
+
+  horariosParaLigarEDesligar = "";
+  quantidadeDeHorariosConfigurados = 0;
+
+  int contadorDeEnderecoDaMemoria = 0;
+
+  bool chegouAoFinalDaMemoria = false;
+
+  while (
+    !chegouAoFinalDaMemoria
+  ){
+
+    int ultimaHoraParaLigar = lerValorInteiroDaEEPROM(contadorDeEnderecoDaMemoria, contadorDeEnderecoDaMemoria+1);
+    int ultimoMinutoParaLigar = lerValorInteiroDaEEPROM(contadorDeEnderecoDaMemoria+2, contadorDeEnderecoDaMemoria+3);
+    int ultimaHoraParaDesligar = lerValorInteiroDaEEPROM(contadorDeEnderecoDaMemoria+4, contadorDeEnderecoDaMemoria+5);
+    int ultimaMinutoParaDesligar = lerValorInteiroDaEEPROM(contadorDeEnderecoDaMemoria+6, contadorDeEnderecoDaMemoria+7);
+
+    if(
+      ultimaHoraParaLigar == 0 &&
+      ultimoMinutoParaLigar == 0 &&
+      ultimaHoraParaDesligar == 0 &&
+      ultimaMinutoParaDesligar == 0
+    ) {
+      chegouAoFinalDaMemoria = true;
+    } else {
+      horariosParaLigarEDesligar += (
+        numeroComDoisDigitos(ultimaHoraParaLigar)+
+        numeroComDoisDigitos(ultimoMinutoParaLigar) + 
+        numeroComDoisDigitos(ultimaHoraParaDesligar) +
+        numeroComDoisDigitos(ultimaMinutoParaDesligar)
+      );
+      quantidadeDeHorariosConfigurados += 1;
+      contadorDeEnderecoDaMemoria = contadorDeEnderecoDaMemoria + 8;
+    }
+  }
+
 }
 
-void handleRoot(){
-    lerHorariosDaMemoria();
-    server.send(200, "text/html", SendHTML()); 
+void initWiFi() {
+    // WiFi.mode(WIFI_STA);
+    // WiFi.begin(ssid, password);
+    // Serial.print("Connecting to WiFi ..");
+    // while (WiFi.status() != WL_CONNECTED){
+		// Serial.print('.');
+		// delay(1000);
+    // }
+    // Serial.println(WiFi.localIP());
+
+  WiFi.softAP(ssid, password);
+  WiFi.softAPConfig(local_ip, gateway, subnet);
+
+}
+void LimparEEPROM() {
+
+  EEPROM.begin(512);  
+
+  Serial.println("Limpando EEPROM!");
+  for (int i = 0; i <= 255; i++) {
+    EEPROM.write(i, 0);
+  }
+  Serial.println("EEPROM apagada!");
+  EEPROM.write(addr_inicial, (byte) 0);
+  EEPROM.commit();
+  EEPROM.end();
+
+  lerHorariosDaMemoria();
+}
+void ligarDispositivo(){
+  dispositivoEstaLigado = true;
+  digitalWrite(portaDoDispositivo, HIGH);     
+}
+void desligarDispositivo(){
+  dispositivoEstaLigado = false;
+  digitalWrite(portaDoDispositivo, LOW);
 }
 
-void renderizarTelaParaConfigurarRelogio(){
+
+bool verificarSeEstaNoHorarioDeLigar(
+  int minutoDoDiaAtual, 
+  int minutoDoDiaParaLigarSistema, 
+  int minutoDoDiaParaDesligarSistema
+){
+
+    if(minutoDoDiaAtual == minutoDoDiaParaDesligarSistema || minutoDoDiaAtual == minutoDoDiaParaLigarSistema){
+      dispositivoFoiLigadoManualmente = false;
+      dispositivoFoiDesativadoManualmente = false;
+    }
+
+    if(dispositivoFoiLigadoManualmente){
+      return true;
+    }
+
+    if(dispositivoFoiDesativadoManualmente){
+      return false;
+    }
+
+    if(minutoDoDiaParaDesligarSistema > minutoDoDiaParaLigarSistema){
+      if(minutoDoDiaAtual >= minutoDoDiaParaLigarSistema && minutoDoDiaAtual < minutoDoDiaParaDesligarSistema){
+        return true;
+      }else {
+        return false;
+      }
+    }else {
+      int tempoQueODispositivoVaiFicarLigado = (minutoDoDiaParaDesligarSistema + 1440) - minutoDoDiaParaLigarSistema;
+      int minutosLigadoNoPrimeiroDia = 1440 - minutoDoDiaParaLigarSistema; // 1440 é a quantidade de minutos em 24 horas
+      int minutosLigadoNoSegundoDia =  tempoQueODispositivoVaiFicarLigado - minutosLigadoNoPrimeiroDia;
+
+
+      if(minutoDoDiaAtual >= minutoDoDiaParaLigarSistema || minutoDoDiaAtual < minutosLigadoNoSegundoDia){
+        return true;
+      } else {
+        return false;
+      }
+    }
+} 
+
+
+void carregarRaiz(){
+  lerHorariosDaMemoria();
+  server.send(200, "text/html", SendHTML()); 
+}
+void carregarTelaParaConfigurarRelogio(){
   server.send(200, "text/html", SendHTMLConfigurarRelogio()); 
 }
-
-void renderizarTelaParaConfigurarHorarioDeLigaEDesliga(){
+void carregarTelaParaConfigurarHorarioDeLigaEDesliga(){
   server.send(200, "text/html", SendHTMLConfigurarHorario()); 
 }
-
-void configurarRelogio(){
+void handleConfigurarRelogio(){
   String horas = server.arg(0);
   String minutos = server.arg(1);
 
@@ -822,117 +974,63 @@ void configurarRelogio(){
   server.send(302, "text/plain", "");
 
 }
-
-void configurarHorarioLigaEDesliga(){
+void handleAdicionarHorarioLigaEDesliga(){
   String horaLiga1 = server.arg(0);
   String minutoLiga1 = server.arg(1);
   String horaDesliga1 = server.arg(2);
   String minutoDesliga1 = server.arg(3);
 
-
   int horaLigaInt = atoi(horaLiga1.c_str());
   int minutoLigaInt = atoi(minutoLiga1.c_str()); 
   int horaDesligaInt = atoi(horaDesliga1.c_str()); 
   int minutoDesligaInt = atoi(minutoDesliga1.c_str()); 
-
-  escreverValorInteiroNaEEPROM(0, 1, horaLigaInt);
-  escreverValorInteiroNaEEPROM(2, 3, minutoLigaInt);
-  escreverValorInteiroNaEEPROM(4, 5, horaDesligaInt);
-  escreverValorInteiroNaEEPROM(6, 7, minutoDesligaInt);
   
-  // lerHorariosDaMemoria();
+  int minutoDoDiaLiga = horaLigaInt*60 + minutoLigaInt;
+  int minutoDoDiaDesliga = horaDesligaInt*60 + minutoDesligaInt;
 
+	DateTime now = rtc.now();
+	int hora = now.hour();
+	int minuto = now.minute();
+
+  int minutoDoDiaAtual = (hora*60) + minuto;
+  bool dispositivoDeveEstarLigado = false;
+
+
+  escreverValorInteiroNaEEPROM(quantidadeDeHorariosConfigurados*8, quantidadeDeHorariosConfigurados*8 +1, horaLigaInt);
+  escreverValorInteiroNaEEPROM(quantidadeDeHorariosConfigurados*8 +2, quantidadeDeHorariosConfigurados*8 +3, minutoLigaInt);
+  escreverValorInteiroNaEEPROM(quantidadeDeHorariosConfigurados*8 +4, quantidadeDeHorariosConfigurados*8 +5, horaDesligaInt);
+  escreverValorInteiroNaEEPROM(quantidadeDeHorariosConfigurados*8 +6, quantidadeDeHorariosConfigurados*8 +7, minutoDesligaInt);
   server.sendHeader("Location", "/", true); 
   server.send(302, "text/plain", "");
+  
 }
-
-
-void initWiFi() {
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(ssid, password);
-    Serial.print("Connecting to WiFi ..");
-    while (WiFi.status() != WL_CONNECTED){
-		Serial.print('.');
-		delay(1000);
-    }
-    Serial.println(WiFi.localIP());
+void handleLigarDispositivoManualmente()  {
+  Serial.println("ligando");
+  ligarDispositivo();
+  dispositivoFoiLigadoManualmente = true;
+  dispositivoFoiDesativadoManualmente = false;
+  server.sendHeader("Location", "/",true); 
+  server.send(302, "text/plain", "");
 }
-
-void Clear_Data() {
-  EEPROM.begin(512);  
-  Serial.println("Limpando EEPROM!");
-  for (int i = 0; i <= 255; i++) {
-    EEPROM.write(i, 0);
-    EEPROM.end();    
-  }
-  Serial.println("EEPROM apagada!");
-  EEPROM.write(addr_inicial, (byte) 0);
-  EEPROM.commit();
-  lido=0;
-  qtde_de_horarios=0;
+void handleDesligarDispositivoManualmente()  {
+  Serial.println("desligando");
+  desligarDispositivo();
+  dispositivoFoiLigadoManualmente = false;
+  dispositivoFoiDesativadoManualmente = true;
+  server.sendHeader("Location", "/",true); 
+  server.send(302, "text/plain", "");
 }
-
-void liga()  {
-    digitalWrite(pin, LOW);
-    novo_horario=0;
-    lido=1;
-    dispositivoEstaLigado=true;
-    LED1status = true;
-    server.sendHeader("Location", "/",true); 
-    server.send(302, "text/plain", "");
-
-    // server.send(200, "text/html", SendHTML()); 
-    botao_liga=1;
-    botao_desliga=1;
-    digitalWrite(rele, HIGH);     
-}
-void desliga()  {
-    digitalWrite(pin, HIGH); 
-    LED1status = false;
-    novo_horario=0; 
-    lido=1;
-    dispositivoEstaLigado=false;
-    server.sendHeader("Location", "/",true); 
-    server.send(302, "text/plain", "");
-
-    // server.send(200, "text/html", SendHTML()); 
-    botao_liga=0;
-    botao_desliga=0;
-    digitalWrite(rele, LOW);     
-}
-
-void limpa()  {
-    Clear_Data();
-    novo_horario=0;   
-    lido=1;  
-    botao_liga=0, botao_desliga=0;
+void handleLimparHorarios()  {
+    LimparEEPROM();
     lerHorariosDaMemoria();
+
+    dispositivoEstaLigado = false;
+    digitalWrite(portaDoDispositivo, LOW); 
+
     server.sendHeader("Location", "/",true);
     server.send(302, "text/plain", "");
 }
-
-void ler()  {
-    // Read_Data();
-    novo_horario=0;   
-    lido=1;  
-    botao_liga=0, botao_desliga=0;
-    server.send(200, "text/html", SendHTML()); 
-} 
-void novo()  {
-    lido = 0;
-    novo_horario=1;
-    botao_liga=0, botao_desliga=0;    
-    server.send(200, "text/html", SendHTML()); 
-}
-void setrHLu() {
-    relhoraLiga++; 
-    if (relhoraLiga > 23) {
-      relhoraLiga = 00;
-    } 
-    server.send(200, "text/html", SendHTML()); 
-} 
-
-void relogio()  {
+void handleConsultarRelogio()  {
 
     char horas[10] = "hh";
     char minutos[10] = "mm";
@@ -940,77 +1038,30 @@ void relogio()  {
     rtc.now().toString(minutos);   
 
     String buf = "{ \"hora\" : \""+ String(horas) + "\", \"minuto\" : \""+String(minutos)+"\" }";
-
     server.send(200, "text/json", buf); 
+
 } 
-
-void save_relogio(int relhoraliga, int relminutoliga) {
-//p  rtc.setTime(relhoraliga, relminutoliga, 0);    //Define o horario
-  rtc.adjust(DateTime(2021, 1, 21, relhoraliga, relminutoliga, 0));
-  novo_relogio = 0;
-  // rtc.setDate(5, 3, 2018);   //Define o dia, mes e ano
-//  server.send(200, "text/html", SendHTML(LED1status,true)); 
-    server.send(200, "text/html", SendHTML()); 
+void handleConsultarStatus(){
+    String buf = "{ \"status\" : \""+ String(dispositivoEstaLigado) +  "\" }";
+    server.send(200, "text/json", buf); 
 }
-void salva_relogio()  {
-  //novo_horario==1
-    save_relogio(relhoraLiga, relminutoLiga);   
-    novo_relogio=0;     
-  //server.send(200, "text/html", SendHTML(LED1status,true)); 
-    server.send(200, "text/html", SendHTML()); 
-}
-
-void salvar()  {
-    // Save_Data();
-    // novo_horario=0;  
-    // Read_Data();  
-    lido=1;   
-    inserido=0; 
- //   qtde_de_horarios++;             
-    server.send(200, "text/html", SendHTML()); 
-}  
-void cancelar()  {
-  lido = 1;
-  novo_horario=0;
-  qtde_de_horarios--;  
-  novo_relogio = 0;
-  server.send(200, "text/html", SendHTML()); 
-}
-void setHLu() {
-    relhoraLiga++; 
-    if (relhoraLiga > 23) {
-      relhoraLiga = 00;
-    } 
-  horaDesl=relhoraLiga;
-  server.send(200, "text/html", SendHTML());     
-}
-
 
 void setup() {
   Serial.begin(115200);
-	pinMode(LED1pin, OUTPUT);
-	pinMode(LED2pin, OUTPUT);
-	pinMode(rele, OUTPUT);  
+	pinMode(portaDoDispositivo, OUTPUT);
 
   initWiFi();
 
-	server.on("/", handleRoot);
-	server.on("/configurar-relogio", renderizarTelaParaConfigurarRelogio);
-	server.on("/configurar-horario", renderizarTelaParaConfigurarHorarioDeLigaEDesliga);
-	server.on("/setar-relogio", configurarRelogio);
-	server.on("/configurar-horario-liga-e-desliga", configurarHorarioLigaEDesliga);
-	server.on("/liga", liga);
-	server.on("/desliga", desliga);
-	server.on("/limpa", limpa);
-
-	server.on("/ler", ler);   
-	server.on("/novo", novo);     
-	// server.on("/inserir", inserir);      
-	server.on("/salvar", salvar);  
-	server.on("/relogio", relogio);    
-	server.on("/salva_relogio", salva_relogio);     
-	// server.on("/Save_Data", Save_Data);   
-	// server.on("/Read_Data", Read_Data);
+	server.on("/", carregarRaiz);
+	server.on("/configurar-relogio", carregarTelaParaConfigurarRelogio);
+	server.on("/configurar-horario", carregarTelaParaConfigurarHorarioDeLigaEDesliga);
+	server.on("/setar-relogio", handleConfigurarRelogio);
+	server.on("/adicionar-horario", handleAdicionarHorarioLigaEDesliga);
+	server.on("/ligar-manualmente", handleLigarDispositivoManualmente);
+	server.on("/desligar-manualmente", handleDesligarDispositivoManualmente);
+	server.on("/limpar-horarios", handleLimparHorarios);
+	server.on("/relogio", handleConsultarRelogio);    
+	server.on("/status", handleConsultarStatus);    
 
 
   server.begin();
@@ -1033,34 +1084,45 @@ void setup() {
   EEPROM.begin(EEPROM_SIZE);
 
   lerHorariosDaMemoria();
+
 }
 
-int cont=0;
+int ultimaHoraAvaliadaNoLoop;
 
 void loop(){
 
-	if(cont==0){
-		cont++;
-		// Read_Data();    
-	}
-	
-	DateTime now = rtc.now();  
+  Serial.println(dispositivoEstaLigado);
+
+	DateTime now = rtc.now();
 	int hora = now.hour();
 	int minuto = now.minute();
-	String hora_str;
-	hora_str=(String(hora)+String(minuto)+"00").c_str(); 
-	int hora_atual=atoi(hora_str.c_str());  
-	// ligado(hora_atual);
+
+  int minutoDoDiaAtual = (hora*60) + minuto;
+  bool dispositivoDeveEstarLigado = false;
+
+  ultimaHoraAvaliadaNoLoop = minutoDoDiaAtual;
+
+  for(int i = 0; i < quantidadeDeHorariosConfigurados; i = i + 1){
+
+    int horaLiga = atoi(horariosParaLigarEDesligar.substring(i*8, i*8+2).c_str());
+    int minutoLiga = atoi(horariosParaLigarEDesligar.substring(i*8+2, i*8+4).c_str());
+    int horaDesliga = atoi(horariosParaLigarEDesligar.substring(i*8+4, i*8+6).c_str());
+    int minutoDesliga = atoi(horariosParaLigarEDesligar.substring(i*8+6, i*8+8).c_str());
+
+    int minutoDoDiaParaLigarSistema = (horaLiga*60) + minutoLiga;
+    int minutoDoDiaParaDesligarSistema = (horaDesliga*60) + minutoDesliga;
+
+    if(!dispositivoDeveEstarLigado){
+      dispositivoDeveEstarLigado = verificarSeEstaNoHorarioDeLigar(minutoDoDiaAtual, minutoDoDiaParaLigarSistema, minutoDoDiaParaDesligarSistema);
+    }
+  }
+
+
+  if((dispositivoDeveEstarLigado && !dispositivoEstaLigado)){
+    ligarDispositivo();
+  } else if((!dispositivoDeveEstarLigado && dispositivoEstaLigado)) {
+    desligarDispositivo();
+  }
 	
 	server.handleClient();
-
-	if(!LED1status){
-		digitalWrite(LED1pin, HIGH);
-		digitalWrite(rele, HIGH);  
-	}else{
-		digitalWrite(LED1pin, LOW);
-		digitalWrite(rele, LOW);
-	}
-	// server.send(200, "text/html", SendHTML()); 
-
 }

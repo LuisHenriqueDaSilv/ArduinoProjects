@@ -1209,7 +1209,7 @@ boolean ligado(int hora){
 //        horaDesliga=String(vet_horadesliga[x])+":"+String(vet_minutodesliga[x])+":00";
 //        horaLiga=String(vet_horaliga[x])+":"+String(vet_minutoliga[x])+":00";        
         horaDesliga=(String(vet_horadesliga[x])+""+String(vet_minutodesliga[x])+"00");
-        horaLiga=(String(vet_horaliga[x])+""+String(vet_minutoliga[x])+"00");        
+        horaLiga=(String(vet_horaliga[x])+""+String(vet_minutoliga[x])+"00");
       }      
       //strcat(hora,vet_horaliga[x]);
 //      Serial.println(hora);
