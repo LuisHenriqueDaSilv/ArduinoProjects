@@ -341,17 +341,20 @@ String SendHTML(){
   buf += "      const visorMinuto = window.document.getElementById('minuto-atual')\n";
 
   buf += "      if(dataStatus.status == 0){\n";
-  buf += "        const visorStatus = window.document.getElementById('ligado')\n";
-  buf += "        const botaoLigado = window.document.getElementById('botaoligado')\n";
+  buf += "        const visorStatus = window.document.getElementById('ligado') || window.document.getElementById('desligado')\n";
+  buf += "        const botaoLigado = window.document.getElementById('botaoligado') || window.document.getElementById('botaodesligado')\n";
+
   buf += "        visorStatus.innerHTML = 'desligado'\n";
   buf += "        visorStatus.id = 'desligado'\n";
   buf += "        botaoLigado.innerHTML = 'ligar manualmente'\n";
   buf += "        botaoLigado.id = 'botaodesligado'\n";
   buf += "        botaoLigado.href = '/ligar-manualmente'\n";
+
   buf += "      } else {\n";
 
-  buf += "        const visorStatus = window.document.getElementById('desligado')\n";
-  buf += "        const botaoDesligado = window.document.getElementById('botaodesligado')\n";
+  buf += "        const visorStatus =    window.document.getElementById('ligado') || window.document.getElementById('desligado')\n";
+  buf += "        const botaoDesligado = window.document.getElementById('botaoligado') || window.document.getElementById('botaodesligado')\n";
+
   buf += "        visorStatus.innerHTML = 'ligado'\n";
   buf += "        visorStatus.id = 'ligado'\n";
   buf += "        botaoDesligado.innerHTML = 'desligar manualmente'\n";
@@ -903,15 +906,15 @@ void LimparEEPROM() {
 }
 void ligarDispositivo(){
   dispositivoEstaLigado = true;
-  digitalWrite(portaDoDispositivo, HIGH);     
+  digitalWrite(portaDoDispositivo, LOW);     
 }
 void desligarDispositivo(){
   dispositivoEstaLigado = false;
-  digitalWrite(portaDoDispositivo, LOW);
+  digitalWrite(portaDoDispositivo, HIGH);
 }
 
 
-bool verificarSeEstaNoHorarioDeLigar(
+bool verificarSeDeveEstarLigado(
   int minutoDoDiaAtual, 
   int minutoDoDiaParaLigarSistema, 
   int minutoDoDiaParaDesligarSistema
@@ -936,7 +939,7 @@ bool verificarSeEstaNoHorarioDeLigar(
       }else {
         return false;
       }
-    }else {
+    }else if(minutoDoDiaParaDesligarSistema < minutoDoDiaParaLigarSistema) {
       int tempoQueODispositivoVaiFicarLigado = (minutoDoDiaParaDesligarSistema + 1440) - minutoDoDiaParaLigarSistema;
       int minutosLigadoNoPrimeiroDia = 1440 - minutoDoDiaParaLigarSistema; // 1440 é a quantidade de minutos em 24 horas
       int minutosLigadoNoSegundoDia =  tempoQueODispositivoVaiFicarLigado - minutosLigadoNoPrimeiroDia;
@@ -947,6 +950,8 @@ bool verificarSeEstaNoHorarioDeLigar(
       } else {
         return false;
       }
+    } else {
+      return false;
     }
 } 
 
@@ -993,7 +998,6 @@ void handleAdicionarHorarioLigaEDesliga(){
 	int minuto = now.minute();
 
   int minutoDoDiaAtual = (hora*60) + minuto;
-  bool dispositivoDeveEstarLigado = false;
 
 
   escreverValorInteiroNaEEPROM(quantidadeDeHorariosConfigurados*8, quantidadeDeHorariosConfigurados*8 +1, horaLigaInt);
@@ -1005,7 +1009,6 @@ void handleAdicionarHorarioLigaEDesliga(){
   
 }
 void handleLigarDispositivoManualmente()  {
-  Serial.println("ligando");
   ligarDispositivo();
   dispositivoFoiLigadoManualmente = true;
   dispositivoFoiDesativadoManualmente = false;
@@ -1013,7 +1016,6 @@ void handleLigarDispositivoManualmente()  {
   server.send(302, "text/plain", "");
 }
 void handleDesligarDispositivoManualmente()  {
-  Serial.println("desligando");
   desligarDispositivo();
   dispositivoFoiLigadoManualmente = false;
   dispositivoFoiDesativadoManualmente = true;
@@ -1024,8 +1026,7 @@ void handleLimparHorarios()  {
     LimparEEPROM();
     lerHorariosDaMemoria();
 
-    dispositivoEstaLigado = false;
-    digitalWrite(portaDoDispositivo, LOW); 
+    desligarDispositivo();
 
     server.sendHeader("Location", "/",true);
     server.send(302, "text/plain", "");
@@ -1049,6 +1050,8 @@ void handleConsultarStatus(){
 void setup() {
   Serial.begin(115200);
 	pinMode(portaDoDispositivo, OUTPUT);
+
+  desligarDispositivo();
 
   initWiFi();
 
@@ -1091,8 +1094,6 @@ int ultimaHoraAvaliadaNoLoop;
 
 void loop(){
 
-  Serial.println(dispositivoEstaLigado);
-
 	DateTime now = rtc.now();
 	int hora = now.hour();
 	int minuto = now.minute();
@@ -1102,19 +1103,26 @@ void loop(){
 
   ultimaHoraAvaliadaNoLoop = minutoDoDiaAtual;
 
-  for(int i = 0; i < quantidadeDeHorariosConfigurados; i = i + 1){
+  if(quantidadeDeHorariosConfigurados > 0){
 
-    int horaLiga = atoi(horariosParaLigarEDesligar.substring(i*8, i*8+2).c_str());
-    int minutoLiga = atoi(horariosParaLigarEDesligar.substring(i*8+2, i*8+4).c_str());
-    int horaDesliga = atoi(horariosParaLigarEDesligar.substring(i*8+4, i*8+6).c_str());
-    int minutoDesliga = atoi(horariosParaLigarEDesligar.substring(i*8+6, i*8+8).c_str());
 
-    int minutoDoDiaParaLigarSistema = (horaLiga*60) + minutoLiga;
-    int minutoDoDiaParaDesligarSistema = (horaDesliga*60) + minutoDesliga;
+    for(int i = 0; i < quantidadeDeHorariosConfigurados; i = i + 1){
 
-    if(!dispositivoDeveEstarLigado){
-      dispositivoDeveEstarLigado = verificarSeEstaNoHorarioDeLigar(minutoDoDiaAtual, minutoDoDiaParaLigarSistema, minutoDoDiaParaDesligarSistema);
+
+      int horaLiga = atoi(horariosParaLigarEDesligar.substring(i*8, i*8+2).c_str());
+      int minutoLiga = atoi(horariosParaLigarEDesligar.substring(i*8+2, i*8+4).c_str());
+      int horaDesliga = atoi(horariosParaLigarEDesligar.substring(i*8+4, i*8+6).c_str());
+      int minutoDesliga = atoi(horariosParaLigarEDesligar.substring(i*8+6, i*8+8).c_str());
+
+      int minutoDoDiaParaLigarSistema = (horaLiga*60) + minutoLiga;
+      int minutoDoDiaParaDesligarSistema = (horaDesliga*60) + minutoDesliga;
+
+      if(!dispositivoDeveEstarLigado){
+        dispositivoDeveEstarLigado = verificarSeDeveEstarLigado(minutoDoDiaAtual, minutoDoDiaParaLigarSistema, minutoDoDiaParaDesligarSistema);
+      }
     }
+  } else {
+    dispositivoDeveEstarLigado = verificarSeDeveEstarLigado(minutoDoDiaAtual, minutoDoDiaAtual+2, minutoDoDiaAtual+4);
   }
 
 
