@@ -73,6 +73,14 @@ int lerValorInteiroDaEEPROM(int endereco1, int endereco2){
 }
 
 
+String numeroComDoisDigitos(int valor){
+  if(valor<10){
+    return "0"+String(valor);
+  } else {
+    return String(valor);
+  }
+}
+
 String SendHTML(){
 
 //Iniciando"; o buffer que ira conter a pagina HTML que sera enviada para o browser.
@@ -83,16 +91,13 @@ String SendHTML(){
   buf += "      <meta http-equiv='X-UA-Compatible' content='IE=edge'>";
   buf += "      <meta name='viewport' content='width=device-width, initial-scale=1.0'>";
   buf += "      <title>Dispositivo remoto</title>";
-  buf += "      <link rel='preconnect' href='https://fonts.googleapis.com'>";
-  buf += "      <link rel='preconnect' href='https://fonts.gstatic.com' crossorigin>";
-  buf += "      <link href='https://fonts.googleapis.com/css2?family=Inter:wght@200;500;600;700&display=swap' rel='stylesheet'>";
   buf += "  </head>";
   buf += "  <style>";
   buf += "      * {";
   buf += "          box-sizing: border-box;";
   buf += "          margin: 0;";
   buf += "          padding: 0;";
-  buf += "          font-family: 'Inter', sans-serif;";
+  buf += "          font-family: sans-serif;";
   buf += "          text-align: center;";
   buf += "          color: #403937;";
   buf += "      }";
@@ -127,6 +132,10 @@ String SendHTML(){
   buf += "          transform: scale(1.05);";
   buf += "          opacity: 0.7;";
   buf += "      }";
+  buf += "      .botao-excluir-horario:hover{";
+  buf += "          transform: scale(1.05);";
+  buf += "          opacity: 0.7;";
+  buf += "      }";
   buf += "      a {";
   buf += "          margin-top: 1rem;";
   buf += "          border: none;";
@@ -140,6 +149,22 @@ String SendHTML(){
   buf += "          background: #C4C4C4;";
   buf += "          box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);";
   buf += "          border-radius: 10px;";
+  buf += "      }";
+  buf += "      .botao-excluir-horario {";
+  buf += "          margin-top: 1rem;";
+  buf += "          border: none;";
+  buf += "          cursor: pointer;";
+  buf += "          transition: 200ms;";
+  buf += "          font-size: 2.5rem;";
+  buf += "          font-weight: 700;";
+  buf += "          border-radius: 10px;";
+  buf += "          padding: 1rem;";
+  buf += "          text-decoration: none;";
+  buf += "          background: #B55454;";
+  buf += "          box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);";
+  buf += "          border-radius: 10px;";
+  buf += "          height: 5rem;";
+  buf += "          width: 5rem;";
   buf += "      }";
   buf += "      .status {";
   buf += "          font-weight: 700;";
@@ -170,7 +195,7 @@ String SendHTML(){
   buf += "      .horario-relogio {";
   buf += "          display: flex;";
   buf += "          justify-content: center;";
-  buf += "          gap: 1rem;";
+  buf += "          gap: 0.5rem;";
   buf += "          flex-direction: row;";
   buf += "          margin-top: 1rem;";
   buf += "      }";
@@ -179,15 +204,15 @@ String SendHTML(){
   buf += "          justify-content: center;";
   buf += "          align-items: center;";
   buf += "          background-color: #CDCDCD;";
-  buf += "          height: 7rem;";
-  buf += "          width: 7rem;";
+  buf += "          height: 5rem;";
+  buf += "          width: 5rem;";
   buf += "          border-radius: 10px;";
-  buf += "          font-size: 4rem;";
+  buf += "          font-size: 2rem;";
   buf += "          font-weight: 500;";
   buf += "          margin-bottom: 2rem;";
   buf += "      }";
   buf += "      .separador-de-hora {";
-  buf += "          font-size: 4rem;";
+  buf += "          font-size: 2rem;";
   buf += "          align-self: center;";
   buf += "      }";
   buf += "        .footer-horarios {";
@@ -206,14 +231,18 @@ String SendHTML(){
   buf += "      }";
   buf += "      .horario {";
   buf += "        display: flex;";
-  buf += "        align-items: center;";
   buf += "        gap: 0.5rem;";
+  buf += "      }";
+  buf += "      .horario h1 {";
+  buf += "        font-size: 2rem;";
+  buf += "        align-self: center;";
   buf += "      }";
   buf += "       .container-de-horarios {";
   buf += "          display: flex;";
   buf += "          flex-direction: column;";
   buf += "          align-items: center;";
   buf += "          width: 100%;";
+  buf += "          margin-top: 2rem;";
   buf += "      }";
   buf += "      @media (max-width: 952px) {";
   buf += "          .app {";
@@ -235,9 +264,7 @@ String SendHTML(){
     buf += "                      <h1>O dispositivo está <strong class='status' id='desligado'>Desligado</strong> </h1>";
     buf += "                      <p id='headerp'>E permanecera assim até o horario configurado para ligar ou o usuario ligar manualmente.</p>";
   }
-
   buf += "                  </div>";
-
   if(dispositivoEstaLigado){
     buf += "                  <a href='/desligar-manualmente' id='botaoligado'>";
     buf += "                      desligar manualmente";
@@ -264,21 +291,28 @@ String SendHTML(){
       buf += "                        <div class='horario'>";
       buf += "                            <div class='horario-relogio'>";
       buf += "                              <div>";
-      buf += horaLiga;
+      buf += numeroComDoisDigitos(horaLiga);
       buf += "                              </div><label class='separador-de-hora'>:</label>";
       buf += "                                <div>";
-      buf += minutoLiga;
+      buf += numeroComDoisDigitos(minutoLiga);
       buf += "                                </div>";
       buf += "                            </div>";
       buf += "                            <h1> até </h1>";
       buf += "                            <div class='horario-relogio'>";
       buf += "                                <div>";
-      buf += horaDesliga;
+      buf += numeroComDoisDigitos(horaDesliga);
       buf += "                                </div><label class='separador-de-hora'>:</label>";
       buf += "                                <div>";
-      buf += minutoDesliga;
+      buf += numeroComDoisDigitos(minutoDesliga);
       buf += "                                </div>";
       buf += "                            </div>";
+      buf += "                          <button onclick='excluirHorario(\"";
+      buf += numeroComDoisDigitos(horaLiga) + numeroComDoisDigitos(minutoLiga);
+      buf += "-";
+      buf += numeroComDoisDigitos(horaDesliga) + numeroComDoisDigitos(minutoDesliga);
+      buf += "\")' class='botao-excluir-horario'>";
+      buf += "                              🗑";
+      buf += "                          </button>";
       buf += "                        </div>";
     }
 
@@ -364,7 +398,18 @@ String SendHTML(){
 
   buf += "      visorHora.innerHTML = datahoraAtual.hora\n";
   buf += "      visorMinuto.innerHTML = datahoraAtual.minuto\n";
-  buf += "    }, 5000)";
+  buf += "    }, 5000)\n";
+
+  buf += "      function excluirHorario(horario){\n";
+  buf += "          const [horarioLiga, horarioDesliga] = horario.split('-')\n";
+  buf += "          const horarioLigaSplitado = horarioLiga.split('')\n";
+  buf += "          const horarioDesligaSplitado = horarioDesliga.split('')\n";
+  buf += "          const usuarioConfirmouAExclusao = confirm(`deseja mesmo excluir o horario de ${horarioLigaSplitado[0]}${horarioLigaSplitado[1]}:${horarioLigaSplitado[2]}${horarioLigaSplitado[3]} ate ${horarioDesligaSplitado[0]}${horarioDesligaSplitado[1]}:${horarioDesligaSplitado[2]}${horarioDesligaSplitado[3]}?`)\n";
+  buf += "          if(usuarioConfirmouAExclusao){\n";
+  buf += "              const horarioFormatadoParaEnvio = `${horarioLigaSplitado[0]}${horarioLigaSplitado[1]}${horarioLigaSplitado[2]}${horarioLigaSplitado[3]}${horarioDesligaSplitado[0]}${horarioDesligaSplitado[1]}${horarioDesligaSplitado[2]}${horarioDesligaSplitado[3]}`\n";
+  buf += "              window.location.replace(`/excluir-horario?horario=${horarioFormatadoParaEnvio}`)\n";
+  buf += "          }\n";
+  buf += "      }\n";
   buf += "  </script>";
   buf += "</html>";
 
@@ -380,16 +425,13 @@ String SendHTMLConfigurarRelogio(){
   buf += "    <meta http-equiv='X-UA-Compatible' content='IE=edge'>";
   buf += "    <meta name='viewport' content='width=device-width, initial-scale=1.0'>";
   buf += "    <title>Dispositivo remoto</title>";
-  buf += "    <link rel='preconnect' href='https://fonts.googleapis.com'>";
-  buf += "    <link rel='preconnect' href='https://fonts.gstatic.com' crossorigin>";
-  buf += "    <link href='https://fonts.googleapis.com/css2?family=Inter:wght@200;500;600;700&display=swap' rel='stylesheet'>";
   buf += "</head>";
   buf += "<style>";
   buf += "    * {";
   buf += "        box-sizing: border-box;";
   buf += "        margin: 0;";
   buf += "        padding: 0;";
-  buf += "        font-family: 'Inter', sans-serif;";
+  buf += "        font-family: sans-serif;";
   buf += "        text-align: center;";
   buf += "        color: #403937;";
   buf += "    }";
@@ -571,10 +613,6 @@ String SendHTMLConfigurarHorario(){
   buf += "    <meta http-equiv='X-UA-Compatible' content='IE=edge'>";
   buf += "    <meta name='viewport' content='width=device-width, initial-scale=1.0'>";
   buf += "    <title>Dispositivo remoto</title>";
-  buf += "";
-  buf += "    <link rel='preconnect' href='https://fonts.googleapis.com'>";
-  buf += "    <link rel='preconnect' href='https://fonts.gstatic.com' crossorigin>";
-  buf += "    <link href='https://fonts.googleapis.com/css2?family=Inter:wght@200;500;600;700&display=swap' rel='stylesheet'>";
   buf += "</head>";
   buf += "<style>";
   buf += "    * {";
@@ -702,7 +740,6 @@ String SendHTMLConfigurarHorario(){
   buf += "    <div class='wrapper'>";
   buf += "        <div class='app'>";
   buf += "            <h1>configure o horario para ligar e desligar o aparelho</h1>";
-  buf += "";
   buf += "            <div class='timers-container'>";
   buf += "                <div class='timer'>";
   buf += "                    <h1>liga:</h1>";
@@ -827,15 +864,6 @@ String SendHTMLConfigurarHorario(){
   return buf;
 
 }
-
-String numeroComDoisDigitos(int valor){
-  if(valor<10){
-    return "0"+String(valor);
-  } else {
-    return String(valor);
-  }
-
-}
 void lerHorariosDaMemoria(){
 
   horariosParaLigarEDesligar = "";
@@ -901,8 +929,6 @@ void LimparEEPROM() {
   EEPROM.write(addr_inicial, (byte) 0);
   EEPROM.commit();
   EEPROM.end();
-
-  lerHorariosDaMemoria();
 }
 void ligarDispositivo(){
   dispositivoEstaLigado = true;
@@ -912,7 +938,6 @@ void desligarDispositivo(){
   dispositivoEstaLigado = false;
   digitalWrite(portaDoDispositivo, HIGH);
 }
-
 
 bool verificarSeDeveEstarLigado(
   int minutoDoDiaAtual, 
@@ -1046,6 +1071,30 @@ void handleConsultarStatus(){
     String buf = "{ \"status\" : \""+ String(dispositivoEstaLigado) +  "\" }";
     server.send(200, "text/json", buf); 
 }
+void handleExcluirHorario(){
+  String horarioParaExclusao = server.arg(0);
+
+  int posicaoDoHorarioParaExclusao = horariosParaLigarEDesligar.indexOf(horarioParaExclusao);
+  horariosParaLigarEDesligar.remove(posicaoDoHorarioParaExclusao, 8); 
+  int tamanhoDaString = horariosParaLigarEDesligar.length();
+
+  LimparEEPROM();
+
+  for(int i = 0; i < tamanhoDaString; i = i + 1){
+
+    int valorInt = atoi(horariosParaLigarEDesligar.substring(i,i+1).c_str());
+
+    EEPROM.begin(512);
+    EEPROM.write(i, valorInt);
+    EEPROM.end();
+
+  }
+
+  lerHorariosDaMemoria();
+
+  server.sendHeader("Location", "/",true); 
+  server.send(302, "text/plain", "");
+}
 
 void setup() {
   Serial.begin(115200);
@@ -1064,7 +1113,8 @@ void setup() {
 	server.on("/desligar-manualmente", handleDesligarDispositivoManualmente);
 	server.on("/limpar-horarios", handleLimparHorarios);
 	server.on("/relogio", handleConsultarRelogio);    
-	server.on("/status", handleConsultarStatus);    
+	server.on("/status", handleConsultarStatus);   
+	server.on("/excluir-horario", handleExcluirHorario);    
 
 
   server.begin();
