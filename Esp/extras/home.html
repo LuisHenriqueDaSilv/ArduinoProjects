@@ -1,0 +1,420 @@
+<html lang='pt-BR'>
+
+<head>
+	<meta charset='UTF-8'>
+	<meta http-equiv='X-UA-Compatible' content='IE=edge'>
+	<meta name='viewport' content='width=device-width, initial-scale=1.0'>
+	<title>Dispositivo remoto</title>
+</head>
+<style>
+	* {
+		box-sizing: border-box;
+		margin: 0;
+		padding: 0;
+		font-family: sans-serif;
+		text-align: center;
+		color: #403937;
+	}
+
+	:root {
+		font-size: 62.5%;
+	}
+
+	body {
+		width: 100vw;
+		height: 100vh;
+		background: linear-gradient(107.56deg, #5D5F28 0%, rgba(32, 90, 38, 0.557143) 32.29%, rgba(26, 87, 32, 0.264286) 53.65%, rgba(30, 30, 30, 0) 100%);
+		background-color: #1E1E1E;
+		font-size: 1.6rem;
+		overflow-x: hidden;
+	}
+
+	.wrapper {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.app {
+		width: 90vw;
+		height: fit-content;
+		padding: 4rem;
+		background-color: #D9D9D9;
+		border-radius: 10px;
+		display: flex;
+		align-items: center;
+		flex-direction: column;
+		gap: 4rem;
+	}
+
+	a:hover {
+		transform: scale(1.05);
+		opacity: 0.7;
+	}
+
+	.botao-excluir-horario:hover {
+		transform: scale(1.05);
+		opacity: 0.7;
+	}
+
+	a {
+		margin-top: 1rem;
+		border: none;
+		cursor: pointer;
+		transition: 200ms;
+		font-size: 2.5rem;
+		font-weight: 700;
+		border-radius: 10px;
+		padding: 1rem;
+		text-decoration: none;
+		background: #C4C4C4;
+		box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+		border-radius: 10px;
+	}
+
+	.botao-excluir-horario {
+		border: none;
+		cursor: pointer;
+		transition: 200ms;
+		font-size: 2.5rem;
+		font-weight: 700;
+		border-radius: 10px;
+		padding: 1rem;
+		text-decoration: none;
+		background: #B55454;
+		box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+		border-radius: 10px;
+		height: 4rem;
+		width: 4rem;
+		justify-content: center;
+		align-items: center;
+		display: flex;
+	}
+
+	.header {
+		display: flex;
+		flex-direction: column;
+		justify-content: space-between;
+		max-width: 97.4rem;
+		width: 100%;
+		gap: 1rem;
+	}
+
+	.header p {
+		color: #403937;
+		font-weight: 600;
+		font-size: 1.2rem;
+	}
+
+	.containerBotoesManual {
+		display: grid;
+		grid-template-columns: 1fr 1fr 1fr;
+	}
+
+	.containerBotoesManual .button {
+		margin: 0;
+		border-radius: 0;
+		border: 2px solid #ffffff;
+		background-color: #8AC87F;
+		padding: 0.5rem;
+		color: #ffffff;
+	}
+
+	.containerBotoesManual .button:nth-child(1) {
+		border-top-left-radius: 12px;
+	}
+
+	.containerBotoesManual .button:nth-child(3) {
+		border-top-right-radius: 12px;
+	}
+
+	.containerBotoesManual .button:last-child {
+		border-bottom-right-radius: 12px;
+	}
+
+	.containerBotoesManual .button p {
+		font-size: 1.5rem;
+		color: #ffffff;
+		font-weight: 600;
+	}
+
+	.containerBotoesManual .button h1 {
+		font-size: 4rem;
+		color: #ffffff;
+	}
+
+	.containerBotoesManual .button label {
+		color: #ffffff;
+		font-size: 1.6rem;
+	}
+
+	#botaodesligado {
+		background-color: #8AC880;
+		color: #ffffff;
+	}
+
+	.horario-relogio {
+		display: flex;
+		justify-content: center;
+		gap: 0.5rem;
+		flex-direction: row;
+		margin-top: 1rem;
+	}
+
+	.horario-relogio div {
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		background-color: #CDCDCD;
+		height: 5rem;
+		width: 5rem;
+		border-radius: 10px;
+		font-size: 2rem;
+		font-weight: 500;
+		margin-bottom: 2rem;
+	}
+
+	.separador-de-hora {
+		font-size: 2rem;
+		align-self: center;
+	}
+
+	.footer-horarios {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 1rem;
+	}
+
+	.footer-horarios a {
+		width: 28rem;
+	}
+
+	@media (min-width: 952px) {
+		.containerBotoesManual {
+			grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr;
+		}
+		.containerBotoesManual button:nth-child(3) {
+			border-top-right-radius: 0px;
+		}
+		.containerBotoesManual button:nth-child(6) {
+			border-top-right-radius: 12px;
+		}
+	}
+
+	.container-de-horarios {
+		gap: 1rem;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		width: 100%;
+		margin-top: 2rem;
+	}
+
+	.horario {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		gap: 2rem;
+	}
+
+	.horario input[type=checkbox]{
+		border: 0px;
+		width: 3rem;
+    	height: 3rem;
+    	vertical-align: middle;
+	}
+
+	.horario h1 {
+		font-size: 2rem;
+		align-self: center;
+	}
+
+	.horario p {
+		font-size: 2rem;
+	}
+
+	.horario p label {
+		font-weight: bolder;
+	}
+
+	.identificador-de-porta-horario {
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		align-items: center;
+		background-color: #8AC87F;
+		border-radius: 10px;
+		width: 4rem;
+		height: 4rem;
+	}
+
+	.identificador-de-porta-horario p {
+		color: #ffffff;
+		font-size: 1.5rem;
+	}
+
+	.identificador-de-porta-horario h1 {
+		color: #ffffff;
+		font-size: 3rem;
+	}
+
+	h1 {
+		font-size: 2.3rem;
+	}
+
+	@media (max-width: 952px) {
+		.app {
+			width: 100vw;
+		}
+	}
+</style>
+
+<body>
+	<div class='wrapper'>
+		<div class='app'>
+			<header class='header'>
+				<div class='containerBotoesManual'>
+					<a class="button">
+						<p>porta</p>
+						<h1>1</h1>
+						<label>desligado</label>
+					</a>
+					<a class="button">
+						<p>porta</p>
+						<h1>1</h1>
+						<label>desligado</label>
+					</a>
+					<a class="button">
+						<p>porta</p>
+						<h1>1</h1>
+						<label>desligado</label>
+					</a>
+					<a class="button">
+						<p>porta</p>
+						<h1>1</h1>
+						<label>desligado</label>
+					</a>
+				</div>
+				<p>toque em uma das portas para alterar seus estados manualmente(Alterado manualmente, a porta
+					permanecera naquele estado até que uma das configurações altere ou seja alterado manualmente
+					novamente)</p>
+
+			</header>
+
+			<div>
+				<h1>as portas estão configuradas para ligarem:</h1>
+				
+				<div class='container-de-horarios'>
+
+					<div class='horario'>
+						<input onchange="ativaDesativaHorario()" type='checkbox'/>
+						<div class='identificador-de-porta-horario'>
+							<h1>1</h1>
+						</div>
+						<p>16:20 <label>até</label> 16:30</p>
+						<button class='botao-excluir-horario'>
+							X
+						</button>
+					</div>
+					<div class='horario'>
+						<input type='checkbox'/>
+						<div class='identificador-de-porta-horario'>
+							<h1>1</h1>
+						</div>
+						<p>16:20 <label>até</label> 16:30</p>
+						<button class='botao-excluir-horario'>
+							X
+						</button>
+					</div>
+					
+				</div>
+				
+				<div class='footer-horarios'>
+					<a href='/configurar-horario'>adicionar horario</a>
+				</div>
+
+
+			</div>
+
+			<div>
+				<h1>horario atual:</h1>
+				<div class='horario-relogio'>
+					<div id='hora-atual'>
+						16
+					</div> <label class='separador-de-hora'>:</label>
+
+					<div id='minuto-atual'>
+						45
+					</div>
+				</div>
+				<a href='/configurar-relogio'>configurar relogio</a>
+			</div>
+
+		</div>
+	</div>
+
+</body>
+<script>
+
+	// function ativaDesativaHorario(){
+	// 	const [horarioLiga, horarioDesliga] = horario.split('-')
+	// 	const horarioLigaSplitado = horarioLiga.split('')
+	// 	const horarioDesligaSplitado = horarioDesliga.split('')
+	// 	const usuarioConfirmouAExclusao = confirm(`deseja mesmo desativar o horario de ${horarioLigaSplitado[0]}${horarioLigaSplitado[1]}:${horarioLigaSplitado[2]}${horarioLigaSplitado[3]} ate ${horarioDesligaSplitado[0]}${horarioDesligaSplitado[1]}:${horarioDesligaSplitado[2]}${horarioDesligaSplitado[3]}?`)
+	// 	if(usuarioConfirmouAExclusao){
+	// 		const horarioFormatadoParaEnvio = `${horarioLigaSplitado[0]}${horarioLigaSplitado[1]}${horarioLigaSplitado[2]}${horarioLigaSplitado[3]}${horarioDesligaSplitado[0]}${horarioDesligaSplitado[1]}${horarioDesligaSplitado[2]}${horarioDesligaSplitado[3]}`
+	// 		window.location.replace(`/desativar-horario?horario=${horarioFormatadoParaEnvio}`)
+	// 	}
+	// }
+
+	//   function excluirHorario(horario){\n
+	//       const [horarioLiga, horarioDesliga] = horario.split('-')\n
+	//       const horarioLigaSplitado = horarioLiga.split('')\n
+	//       const horarioDesligaSplitado = horarioDesliga.split('')\n
+	//       const usuarioConfirmouAExclusao = confirm(`deseja mesmo excluir o horario de ${horarioLigaSplitado[0]}${horarioLigaSplitado[1]}:${horarioLigaSplitado[2]}${horarioLigaSplitado[3]} ate ${horarioDesligaSplitado[0]}${horarioDesligaSplitado[1]}:${horarioDesligaSplitado[2]}${horarioDesligaSplitado[3]}?`)\n
+	//       if(usuarioConfirmouAExclusao){\n
+	//           const horarioFormatadoParaEnvio = `${horarioLigaSplitado[0]}${horarioLigaSplitado[1]}${horarioLigaSplitado[2]}${horarioLigaSplitado[3]}${horarioDesligaSplitado[0]}${horarioDesligaSplitado[1]}${horarioDesligaSplitado[2]}${horarioDesligaSplitado[3]}`\n
+	//           window.location.replace(`/excluir-horario?horario=${horarioFormatadoParaEnvio}`)\n
+	//       }\n
+	//   }\n
+
+	// setInterval(async() => {\n
+	//   const respostaHoraAtual = await fetch('/relogio')\n
+	//   const respostaStatus = await fetch('/status')\n
+	//   const datahoraAtual = await respostaHoraAtual.json()\n
+	//   const dataStatus = await respostaStatus.json()\n
+
+	//   const visorHora = window.document.getElementById('hora-atual')\n
+	//   const visorMinuto = window.document.getElementById('minuto-atual')\n
+
+	//   if(dataStatus.status == 0){\n
+	//     const visorStatus = window.document.getElementById('ligado') || window.document.getElementById('desligado')\n
+	//     const botaoLigado = window.document.getElementById('botaoligado') || window.document.getElementById('botaodesligado')\n
+
+	//     visorStatus.innerHTML = 'desligado'\n
+	//     visorStatus.id = 'desligado'\n
+	//     botaoLigado.innerHTML = 'ligar manualmente'\n
+	//     botaoLigado.id = 'botaodesligado'\n
+	//     botaoLigado.href = '/ligar-manualmente'\n
+
+	//   } else {\n
+
+	//     const visorStatus =    window.document.getElementById('ligado') || window.document.getElementById('desligado')\n
+	//     const botaoDesligado = window.document.getElementById('botaoligado') || window.document.getElementById('botaodesligado')\n
+
+	//     visorStatus.innerHTML = 'ligado'\n
+	//     visorStatus.id = 'ligado'\n
+	//     botaoDesligado.innerHTML = 'desligar manualmente'\n
+	//     botaoDesligado.id = 'botaoligado'\n
+	//     botaoDesligado.href = '/desligar-manualmente'\n
+	//   }\n
+
+	//   visorHora.innerHTML = datahoraAtual.hora\n
+	//   visorMinuto.innerHTML = datahoraAtual.minuto\n
+	// }, 5000)\n
+
+
+</script>
+
+</html>

@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang='pt-BR'>
+
+<head>
+    <meta charset='UTF-8'>
+    <meta http-equiv='X-UA-Compatible' content='IE=edge'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>Dispositivo remoto</title>
+</head>
+<style>
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        font-family: 'Inter', sans-serif;
+        text-align: center;
+        color: #403937;
+    }
+
+    :root {
+        font-size: 62.5%;
+    }
+
+    body {
+        width: 100vw;
+        height: 100vh;
+        background: linear-gradient(107.56deg, #5D5F28 0%, rgba(32, 90, 38, 0.557143) 32.29%, rgba(26, 87, 32, 0.264286) 53.65%, rgba(30, 30, 30, 0) 100%);
+        background-color: #1E1E1E;
+        font-size: 1.6rem;
+    }
+
+    .wrapper {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .app {
+        width: 90vw;
+        height: fit-content;
+        padding: 2rem;
+        background-color: #D9D9D9;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        flex-direction: column;
+        gap: 4rem;
+    }
+
+    button {
+        width: 7rem;
+        height: 7rem;
+        background: #8AC880;
+        border: none;
+        border-radius: 10px;
+        box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+        font-weight: 900;
+        font-size: 36px;
+        color: #ffffff;
+        cursor: pointer;
+        transition: 200ms;
+    }
+
+    button:hover {
+        transform: scale(1.05);
+    }
+
+    a:hover {
+        transform: scale(1.05);
+    }
+
+    .timer-container div {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 7rem;
+        height: 7rem;
+        background: #CDCDCD;
+        box-shadow: inset 0px 4px 4px rgba(0, 0, 0, 0.25);
+        border-radius: 1rem;
+        font-size: 4rem;
+    }
+
+    .timer {
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        align-items: center;
+        gap: 1.1rem;
+    }
+
+    .timer p {
+        font-size: 4rem;
+    }
+
+    .footer {
+        display: flex;
+        width: 100%;
+        max-width: 97.4rem;
+    }
+
+    .footer button {
+        border: 0;
+        border-radius: 10px 0 0 10px;
+        width: 100%;
+        padding: 1rem;
+        background-color: #3B64B2;
+        color: #FFFFFF;
+        font-weight: 700;
+        font-size: 3rem;
+        text-decoration: none;
+        transition: 200ms;
+    }
+
+    #cancel-button {
+        border-radius: 0 10px 10px 0;
+        background-color: #B2433B;
+    }
+
+    .timers-container {
+        display: flex;
+        flex-direction: row;
+        gap: 5rem;
+    }
+
+    .timer {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .timer-selector {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .timer-container {
+        display: flex;
+        flex-direction: column;
+        gap: 2.1rem;
+    }
+
+    @media (max-width: 952px) {
+        .app {
+            width: 100vw;
+        }
+    }
+
+    .portas-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr;
+    }
+
+    .porta {
+        padding: 1rem;
+        border: 2px solid #ffffff;
+        border-radius: 0;
+        height: auto;
+        width: auto;
+    }
+
+    p {
+        font-weight: bolder;
+    }
+
+    .porta h1 {
+        font-size: 4rem;
+        color: #ffffff;
+    }
+
+    .porta p {
+        font-size: 2rem;
+        color: #ffffff;
+        
+    }
+
+	.portas-container .porta:nth-child(1) {
+		border-top-left-radius: 12px;
+	}
+
+	.portas-container .porta:nth-child(6) {
+		border-top-right-radius: 12px;
+	}
+
+	.portas-container .porta:last-child {
+		border-bottom-right-radius: 12px;
+	}
+
+    #porta-selecionada {
+        background-color: #4D4698;
+    }
+</style>
+
+<body>
+    <div class='wrapper'>
+        <div class='app'>
+            <h1>configurar horario</h1>
+
+            <div>
+                <p>selecione a porta desejada para a configuração</p>
+                <div class='portas-container'>
+                    <button onclick='selecionarporta(0)' class='porta porta-0'>
+                        <p>porta</p>
+                        <h1>1</h1>
+                    </button>
+                    <button onclick='selecionarporta(1)' class='porta porta-1'>
+                        <p>porta</p>
+                        <h1>2</h1>
+                    </button>
+                </div>
+            </div>
+
+            <div class='timers-container'>
+                <div class='timer'>
+                    <h1>liga:</h1>
+                    <div class='timer-selector'>
+                        <div class='timer-container'>
+                            <button onclick='somarHoraLiga(5)'>+5</button>
+                            <button onclick='somarHoraLiga(1)'>+1</button>
+                            <div id='horaLiga'>0</div>
+                            <button onclick='somarHoraLiga(-1)' style='background-color: #D45C5C;'>-1</button>
+                            <button onclick='somarHoraLiga(-5)' style='background-color: #D45C5C;'>-5</button>
+                        </div>
+                        <p>:</p>
+                        <div class='timer-container'>
+                            <button onclick='somarMinutosLiga(5)'>+5</button>
+                            <button onclick='somarMinutosLiga(1)'>+1</button>
+                            <div id='minutoLiga'>0</div>
+                            <button onclick='somarMinutosLiga(-1)' style='background-color: #D45C5C;'>-1</button>
+                            <button onclick='somarMinutosLiga(-5)' style='background-color: #D45C5C;'>-5</button>
+                        </div>
+                    </div>
+                </div>
+                <div class='timer'>
+                    <h1>desliga:</h1>
+                    <div class='timer-selector'>
+                        <div class='timer-container'>
+                            <button onclick='somarHoraDesliga(5)'>+5</button>
+                            <button onclick='somarHoraDesliga(1)'>+1</button>
+                            <div id='horaDesliga'>0</div>
+                            <button onclick='somarHoraDesliga(-1)' style='background-color: #D45C5C;'>-1</button>
+                            <button onclick='somarHoraDesliga(-5)' style='background-color: #D45C5C;'>-5</button>
+                        </div>
+                        <p>:</p>
+                        <div class='timer-container'>
+                            <button onclick='somarMinutosDesliga(5)'>+5</button>
+                            <button onclick='somarMinutosDesliga(1)'>+1</button>
+                            <div id='minutoDesliga'>0</div>
+                            <button onclick='somarMinutosDesliga(-1)' style='background-color: #D45C5C;'>-1</button>
+                            <button onclick='somarMinutosDesliga(-5)' style='background-color: #D45C5C;'>-5</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class='footer'>
+                <button onclick='confirmar()'>confirmar</button>
+                <button onclick='cancelar()' id='cancel-button' href='/'>cancelar</a>
+            </div>
+        </div>
+    </div>
+</body>
+<script>
+
+    let portaselecionada
+
+    function selecionarporta(posicao){
+        const selecionadoAnterior = document.getElementById('porta-selecionada');
+        if(selecionadoAnterior)selecionadoAnterior.id = '';
+
+        const elemento = document.getElementsByClassName(`porta-${posicao}`)[0]
+
+        elemento.id = 'porta-selecionada'
+        portaselecionada = posicao
+    }
+</script>
+
+</html>
